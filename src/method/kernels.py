@@ -24,7 +24,6 @@ def _validate_shape(x, y):
     )
 
 
-
 class AbstractKernel(ABC):
     """
     Base class for kernel methods.
@@ -58,11 +57,11 @@ class AbstractKernel(ABC):
     def __call__(self, x: np.ndarray, y: np.ndarray = None):
         if y is None:
             y = x
-        _validate_shape(x, y)
+        # _validate_shape(x, y)
         return self._transform(x, y)
 
 
-class RBFKernel(AbstractKernel):
+class RBFKernel(AbstractKernel):  # pylint: disable=too-few-public-methods
     """
     Implement the pairwise (generalised) RBF kernel.
     k(x, y) = exp(-1/(2*bandwidth**2) * ||x-y||^2).

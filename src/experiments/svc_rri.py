@@ -1,149 +1,87 @@
+from typing import Iterable, Any
+
 import numpy as np
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    pairwise_distances,
-    precision_score,
-    recall_score,
-)
 
-# TODO: fix imports (make them relative)
-from src.data.dataset import ECGDataset, HospitalDataset
-from src.method.features import extract_sub_trajectories, extract_rri_data
-from src.method.kernels import RBFKernel
-from src.method.svm_classifier import SVCClassifier
+from ..data.dataset import ECGDataset, COATDataset
+from ..experiments.util import ExperimentTracker, METRICS, make_binary_labels
+from ..method.features import extract_normalized_rri
+from ..method.kernels import RBFKernel
+from ..method.svm_classifier import SVCClassifier
 
 
-def main(
-    train_set: ECGDataset,
-    val_set: ECGDataset,
-    experiment_number: int,
-    mixing_speed: int,
-    offset: int,
-    distance_fraction: float,
-    cs: [float],
-    scalar: float,
-    n_jobs: int = 1,
-    results_folder: str = "../../results",  # TODO: Flagged for refactoring.
-    dname: str = "qrs_sub_trajecs",  # TODO: Flagged for refactoring.
-    quantile: float = 0.5,
-):  # pylint: disable=missing-function-docstring, too-many-arguments, too-many-locals, invalid-name
+def svc_rri(
+        name: str,
+        description: dict[str, Any],
+        train_ds: ECGDataset,
+        validate_ds: ECGDataset,
+        train_af_labels: set,
+        validate_af_labels: set,
+        c: float,
+        bandwidths: Iterable[float]
+) -> ExperimentTracker:
+    assert train_af_labels <= train_ds.label_domain()
+    assert validate_af_labels <= validate_ds.label_domain()
 
-    mean_distance = train_set.distance_between_qrs_complexes(
-        "mean", labels=train_set.RHYTHMS["AF"]
-    )
-    length_trajectory = int(distance_fraction * mean_distance)
+    # extract normalized RR intervals as feature
+    rri_train = extract_normalized_rri(train_ds.qrs_complexes)
+    rri_validate = extract_normalized_rri(validate_ds.qrs_complexes)
 
-    (train_trajectory_indices, _,) = extract_sub_trajectories(
-        mixing_speed, offset, length_trajectory, train_set
-    )
-    val_trajectory_indices, _ = extract_sub_trajectories(
-        mixing_speed, offset, length_trajectory, val_set
-    )
-    # create mask for elements that are dropped because not enough qrs
-    # complexes are detected (see _extract_sub_trajectories for details)
-    # reduce data further to consider only SR and AFIB
-    train_mask = get_data_mask(
-        train_set, train_trajectory_indices, n_instances_per_class=300
-    )
-    val_mask = get_data_mask(
-        val_set, val_trajectory_indices, n_instances_per_class=200
-    )
-    train_spike_time_data = extract_rri_data(
-        train_trajectory_indices, train_set.qrs_complexes[0]
-    )
-    val_spike_time_data = extract_rri_data(
-        val_trajectory_indices, val_set.qrs_complexes[0]
-    )
+    # make sure labels are binary (1 = AF, 0 = noAF)
+    labels_train = make_binary_labels(train_ds.labels, train_af_labels)
+    labels_validate = make_binary_labels(validate_ds.labels, validate_af_labels)
 
-    # spike_time_bandwidth = 0.04
-    # TODO: Flagged for refactoring. This is a heuristic and should go in the `heuristics` module.
-    squared_distances = pairwise_distances(
-        train_spike_time_data[train_mask],
-    )
-    band_width = np.sqrt(
-        np.quantile(squared_distances[squared_distances > 0], q=quantile)
-        / 2
-        / scalar
-    )
+    # make sure data has correct shape (n_instances, n_trajectories, length_trajectory, dim_trajectory)
+    # every RRI is considered a 1D trajectory
+    rri_train = rri_train[:, :, None, None]
+    rri_validate = rri_validate[:, :, None, None]
 
-    spike_time_kernel = RBFKernel(band_width)
+    tracker = ExperimentTracker(name, {
+        "train": repr(train_ds),
+        "validate": repr(validate_ds)
+    }, description)
 
-    score_functions = {
-        "accuracy": accuracy_score,
-        "f1-score": f1_score,
-        "precision": precision_score,
-        "recall": recall_score,
-    }
+    for bandwidth in bandwidths:
+        kernel = RBFKernel(bandwidth)
+        classifier = SVCClassifier(kernel, c)
+        classifier.fit(rri_train, labels_train)
 
-    overall_scores = {}
-    X_train = train_spike_time_data[train_mask]
-    y_train = _get_binary_labels(train_mask, train_set)
-
-    X_val = val_spike_time_data[val_mask]
-    y_val = _get_binary_labels(val_mask, val_set)
-    for c in cs:  # pylint: disable=invalid-name
-        clf = SVCClassifier(kernel=spike_time_kernel, C=c, n_jobs=n_jobs)
-        clf.fit(X_train, y_train)
-        y_hat = clf.predict(X_val)
+        predictions_validate = classifier.predict(rri_validate)
 
         scores = {
-            score: function(y_val, y_hat)
-            for score, function in score_functions.items()
+            name: metric(labels_validate, predictions_validate)
+            for name, metric in METRICS.items()
         }
 
-        overall_scores[c] = scores
+        tracker[{"c": c, "bandwidth": bandwidth}] = scores
 
-    # TODO: dump results (configuration -> metrics)
+        print(f"c={c}, sigma={bandwidth}: {scores}")
 
-
-def _get_binary_labels(mask, data_set):
-    y_train = np.where(
-        np.isin(
-            data_set.labels[mask],
-            [data_set.RHYTHMS["AFIB"], data_set.RHYTHMS["AF"]],
-        ),
-        0,
-        1,
-    )
-    return y_train
+    return tracker
 
 
-# TODO: Flagged for refactoring. This should already be taken care of by the Dataset.
-def get_data_mask(data_set, trajectory_indices, n_instances_per_class):
-    mask_afib = (~np.isclose(trajectory_indices, 0).all(axis=(1, 2))) & (
-        np.isin(
-            data_set.labels, [data_set.RHYTHMS["AFIB"], data_set.RHYTHMS["AF"]]
-        )
-    )
-    mask_healty = (~np.isclose(trajectory_indices, 0).all(axis=(1, 2))) & (
-        ~np.isin(
-            data_set.labels, [data_set.RHYTHMS["AFIB"], data_set.RHYTHMS["AF"]]
-        )
-    )
-    rng = np.random.default_rng(seed=42)
-    mask = np.zeros_like(mask_afib, dtype=np.bool)
-    mask[
-        rng.choice(
-            np.where(mask_afib)[0], n_instances_per_class, replace=False
-        )
-    ] = True
-    mask[
-        rng.choice(
-            np.where(mask_healty)[0],
-            n_instances_per_class,
-            replace=False,
-        )
-    ] = True
-    return mask
-
+DESCRIPTION = {}
 
 if __name__ == "__main__":
-    main(
-        experiment_number=25,
-        mixing_speed=0,
-        offset=HospitalDataset.FREQUENCY * 5,
-        distance_fraction=0.5,
-        cs=np.logspace(-1, 1, 5),
-        scalar=1,
+    train_data = COATDataset.load_train() \
+        .filter(lambda entry: len(entry.qrs_complexes) > 50) \
+        .balanced_binary_partition({COATDataset.AF}, 200)
+
+    validate_data = COATDataset.load_validate() \
+        .filter(lambda entry: len(entry.qrs_complexes) > 50) \
+        .balanced_binary_partition({COATDataset.AF}, 70)
+
+    print(train_data)
+    print(validate_data)
+
+    result = svc_rri(
+        "SVM RRI",
+        DESCRIPTION,
+        train_data,
+        validate_data,
+        {COATDataset.AF},
+        {COATDataset.AF},
+        10,
+        np.logspace(-2, 0, 30)
     )
+
+    result.save()

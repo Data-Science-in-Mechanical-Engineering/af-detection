@@ -1,7 +1,9 @@
 # Data
-data/coat
-data/sph
+data/coat/*/
+data/sph/*/
 
+# Results
+results/
 
 
 # Byte-compiled / optimized / DLL files
