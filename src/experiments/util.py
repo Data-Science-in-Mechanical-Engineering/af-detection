@@ -85,7 +85,7 @@ class ExperimentTracker:
             now = datetime.now()
             filename = f"{now.strftime('%Y-%m-%d %H-%M-%S.%f')[:-3]}.json"
 
-        experiment_folder = ExperimentTracker.ROOT_FOLDER / self.experiment_name
+        experiment_folder = RESULTS_FOLDER / self.experiment_name
         experiment_folder.mkdir(parents=True, exist_ok=True)
 
         with open(experiment_folder / filename, "w+") as file:

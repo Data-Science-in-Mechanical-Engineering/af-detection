@@ -4,7 +4,7 @@ from ..data.dataset import ECGDataset, SPHDataset
 from ..experiments.util import ExperimentTracker, make_binary_labels, METRICS, compute_confusion
 from ..method.features import extract_normalized_rri
 from ..method.kernels import RBFKernel
-from ..method.svm_classifier import SVCClassifier
+from ..method.svm_classifier import SVMKMEClassifier
 
 
 def svc_rri(
@@ -39,7 +39,7 @@ def svc_rri(
 
     for bandwidth in bandwidths:
         kernel = RBFKernel(bandwidth)
-        classifier = SVCClassifier(kernel, c)
+        classifier = SVMKMEClassifier(kernel, c)
 
         classifier.fit(rri_train, labels_train)
         predictions_validate = classifier.predict(rri_validate)
@@ -70,7 +70,7 @@ DESCRIPTION = {}
 if __name__ == "__main__":
     train_data = SPHDataset.load_train() \
         .filter(lambda entry: len(entry.qrs_complexes) > 7) \
-        .balanced_binary_partition({SPHDataset.AFIB}, 1000)
+        .balanced_binary_partition({SPHDataset.AFIB}, 30)
 
     validate_data = SPHDataset.load_validate() \
         .filter(lambda entry: len(entry.qrs_complexes) > 7) \
@@ -90,4 +90,4 @@ if __name__ == "__main__":
         [0.05]
     )
 
-    result.save()
+    # result.save()

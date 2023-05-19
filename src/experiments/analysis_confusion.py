@@ -7,8 +7,6 @@ import numpy as np
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from src.experiments.util import RESULTS_FOLDER
-
 
 def plot_confusion_matrix(
         confusion: dict[Any, dict[Any, int]],
@@ -47,37 +45,6 @@ def plot_confusion_matrix(
     if folder is None:
         plt.show()
     else:
-        plt.savefig(folder / f"{re.sub(r'[^a-zA-Z0-9_ ]', '', title)}.pdf")
-
-
-if __name__ == "__main__":
-    con = {
-        "AFIB": {
-            "AFIB": 336,
-            "SA": 9,
-            "AF": 11,
-            "ST": 4,
-            "SB": 11,
-            "SR": 1,
-            "AT": 2
-        },
-        "noAFIB": {
-            "AFIB": 14,
-            "SA": 5,
-            "SB": 147,
-            "SR": 70,
-            "SVT": 27,
-            "AT": 3,
-            "ST": 49,
-            "AF": 9,
-            "AVRT": 1,
-            "AVNRT": 1
-        }
-    }
-
-    plot_confusion_matrix(
-        con,
-        "Confusion: SPH / SPH (normalized by class)",
-        RESULTS_FOLDER,
-        normalize="class"
-    )
+        filename = re.sub(r'[^a-zA-Z0-9_ ]', '', title)
+        filename = re.sub(' +', ' ', filename)
+        plt.savefig(folder / f"{filename}.pdf")
