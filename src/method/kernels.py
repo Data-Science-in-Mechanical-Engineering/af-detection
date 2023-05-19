@@ -24,6 +24,12 @@ def _validate_shape(x, y):
     )
 
 
+def _validate_pairwise_kernels_shape(x: np.ndarray, y: np.ndarray):
+    assert x.ndim == y.ndim == 4, "Inputs must have shape (n_patients, m_trajectories, length, dim)."
+    assert x.shape[2] == y.shape[2], "Trajectory length must match."
+    assert x.shape[3] == y.shape[3], "Trajectory dimensionality must match."
+
+
 class AbstractKernel(ABC):
     """
     Base class for kernel methods.
@@ -33,6 +39,15 @@ class AbstractKernel(ABC):
     described as (number_sub_trajectories, length_sub_trajectory,
     data_dimension).
     """
+
+    def pairwise_kme(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        _validate_pairwise_kernels_shape(x, y)
+
+        return np.array([
+            self._transform(xi, yj).mean()
+            for xi in x
+            for yj in y
+        ]).reshape(x.shape[0], y.shape[0])
 
     @abstractmethod
     def _transform(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -92,6 +107,25 @@ class RBFKernel(AbstractKernel):  # pylint: disable=too-few-public-methods
         """
         self._bandwidth = bandwidth
         self._n_jobs = n_jobs
+
+    def pairwise_kme(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        _validate_pairwise_kernels_shape(x, y)
+
+        if x.shape[0] * y.shape[0] < (x.shape[1] + x.shape[2] + x.shape[3]) * (y.shape[1] + y.shape[2] + y.shape[3]):
+            return super(RBFKernel, self).pairwise_kme(x, y)
+        else:
+            return self.vectorized_kme(x, y)
+
+    def vectorized_kme(self, x, y):
+        x = x.reshape((*x.shape[:-2], -1))
+        y = y.reshape((*y.shape[:-2], -1))
+
+        pairwise_differences = x[:, None, :, None] - y[None, :, None, :]
+        pairwise_squared_euclidean_distances = (pairwise_differences ** 2).sum(axis=-1)
+        pairwise_rbf_kernel = np.exp(-1 / 2 / (self._bandwidth ** 2) * pairwise_squared_euclidean_distances)
+        pairwise_kernel_mean_embeddings = pairwise_rbf_kernel.mean(axis=(-1, -2))
+
+        return pairwise_kernel_mean_embeddings
 
     def _transform(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         m_x, m_y = x.shape[0], y.shape[0]

@@ -1,30 +1,9 @@
-import timeit
 from abc import abstractmethod
 
 import numpy as np
 from sklearn.svm import SVC
 
 from ..method.kernels import AbstractKernel
-
-
-# NOTE: This is experimental
-# TODO: This should be refactored into the RBF Kernel if we keep this
-def vec_reduce_kernel(x: np.ndarray, y: np.ndarray, bandwidth: float) -> np.ndarray:
-    if x.ndim == 4:
-        x = x.reshape((*x.shape[:-2], -1))
-
-    if y.ndim == 4:
-        y = y.reshape((*y.shape[:-2], -1))
-
-    assert x.ndim == 3
-    assert y.ndim == 3
-    assert x.shape[2] == y.shape[2]
-
-    dist = np.subtract.outer(x.reshape(x.shape[0], -1), y.reshape(y.shape[0], -1)).transpose((0, 2, 1, 3)) ** 2
-    exp = np.exp(-1 / 2 / (bandwidth ** 2) * dist)
-    kme = exp.mean(axis=(2, 3))
-
-    return kme
 
 
 def _validate_shape(x: np.ndarray, y: np.ndarray):
@@ -105,7 +84,7 @@ class SVCClassifier(BaseClassifier):
         :rtype: SVCClassifier
         """
         self._x = x
-        kernel_matrix = self.compute_kernel_matrix(x, x)
+        kernel_matrix = self.kernel.pairwise_kme(x, x)
         self._clf.fit(kernel_matrix, y)
         return self
 
@@ -113,16 +92,6 @@ class SVCClassifier(BaseClassifier):
         kernel_matrix = self.kernel(x, y)
         reduced_kernel_value = np.mean(kernel_matrix)
         return reduced_kernel_value
-
-    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        # return np.array([
-        #     self._reduce_kernel(xi, yj)
-        #     for xi in x
-        #     for yj in y
-        # ]).reshape(x.shape[0], y.shape[0])
-
-        # TODO: This is experimental and should be refactored if we keep it
-        return vec_reduce_kernel(x, y, self.kernel._bandwidth)
 
     def predict(self, x: np.ndarray | list[np.ndarray]):
         """
@@ -132,7 +101,7 @@ class SVCClassifier(BaseClassifier):
         :return: Label for each sample
         :rtype: np.ndarray of shape (n_queries,)
         """
-        kernel_matrix = self.compute_kernel_matrix(x, self._x)
+        kernel_matrix = self.kernel.pairwise_kme(x, self._x)
         return self._clf.predict(kernel_matrix)
 
     def decision_function(self, x: np.ndarray | list[np.ndarray]):
@@ -143,5 +112,5 @@ class SVCClassifier(BaseClassifier):
         :return: Label for each sample
         :rtype: np.ndarray of shape (n_queries,)
         """
-        kernel_matrix = self.compute_kernel_matrix(x, self._x)
+        kernel_matrix = self.kernel.pairwise_kme(x, self._x)
         return self._clf.decision_function(kernel_matrix)
