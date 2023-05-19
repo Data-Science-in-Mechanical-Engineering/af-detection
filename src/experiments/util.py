@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Final, Any
@@ -8,6 +9,11 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 
 Setup = Parametrization = dict[str, Any]
 Outcome = dict[str, float]
+
+if "__file__" in globals():
+    RESULTS_FOLDER = Path(__file__).parent.parent.parent / "results"
+else:
+    RESULTS_FOLDER = Path().resolve().parent.parent / "results"
 
 METRICS = {
     "accuracy": accuracy_score,
@@ -22,8 +28,32 @@ def make_binary_labels(labels: np.ndarray, values_1: set) -> np.ndarray:
     return np.isin(labels, values_1).astype(int)
 
 
+def compute_confusion(
+        grouped_predictions: np.ndarray,
+        grouped_labels: np.ndarray,
+        actual_labels: np.ndarray,
+        prediction_mapping: dict[Any, str] | None = None,
+        label_mapping: dict[Any, str] | None = None
+):
+    assert grouped_predictions.ndim == 1
+    assert grouped_labels.ndim == 1
+    assert actual_labels.ndim == 1
+    assert grouped_predictions.size == grouped_labels.size == actual_labels.size
+
+    confusion = defaultdict(lambda: defaultdict(lambda: 0))
+
+    for group_prediction, group_label, actual_label in zip(grouped_predictions, grouped_labels, actual_labels):
+        if prediction_mapping is not None:
+            group_prediction = prediction_mapping[group_prediction]
+        if label_mapping is not None:
+            actual_label = label_mapping[actual_label]
+
+        confusion[str(group_prediction)][str(actual_label)] += 1
+
+    return confusion
+
+
 class ExperimentTracker:
-    ROOT_FOLDER = Path().resolve().parent.parent / "results"
     created_time: Final[datetime]
     experiment_name: Final[str]
     setup: Final[Setup]

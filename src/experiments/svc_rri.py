@@ -1,9 +1,7 @@
 from typing import Iterable, Any
 
-import numpy as np
-
-from ..data.dataset import ECGDataset, COATDataset
-from ..experiments.util import ExperimentTracker, METRICS, make_binary_labels
+from ..data.dataset import ECGDataset, SPHDataset
+from ..experiments.util import ExperimentTracker, make_binary_labels, METRICS, compute_confusion
 from ..method.features import extract_normalized_rri
 from ..method.kernels import RBFKernel
 from ..method.svm_classifier import SVCClassifier
@@ -17,7 +15,8 @@ def svc_rri(
         train_af_labels: set,
         validate_af_labels: set,
         c: float,
-        bandwidths: Iterable[float]
+        bandwidths: Iterable[float],
+        verbose_metrics: bool = True
 ) -> ExperimentTracker:
     assert train_af_labels <= train_ds.label_domain()
     assert validate_af_labels <= validate_ds.label_domain()
@@ -35,16 +34,14 @@ def svc_rri(
     rri_train = rri_train[:, :, None, None]
     rri_validate = rri_validate[:, :, None, None]
 
-    tracker = ExperimentTracker(name, {
-        "train": repr(train_ds),
-        "validate": repr(validate_ds)
-    }, description)
+    setup = {"train": repr(train_ds), "validate": repr(validate_ds)}
+    tracker = ExperimentTracker(name, setup, description)
 
     for bandwidth in bandwidths:
         kernel = RBFKernel(bandwidth)
         classifier = SVCClassifier(kernel, c)
-        classifier.fit(rri_train, labels_train)
 
+        classifier.fit(rri_train, labels_train)
         predictions_validate = classifier.predict(rri_validate)
 
         scores = {
@@ -52,9 +49,18 @@ def svc_rri(
             for name, metric in METRICS.items()
         }
 
+        if verbose_metrics:
+            scores["confusion"] = compute_confusion(
+                predictions_validate,
+                labels_validate,
+                validate_ds.labels,
+                {0: "noAFIB", 1: "AFIB"}
+            )
+
         tracker[{"c": c, "bandwidth": bandwidth}] = scores
 
-        print(f"c={c}, sigma={bandwidth}: {scores}")
+        print(f"c={c}, sigma={bandwidth}: accuracy: {scores['accuracy']}, precision: {scores['precision']}, "
+              f"recall: {scores['recall']}")
 
     return tracker
 
@@ -62,13 +68,13 @@ def svc_rri(
 DESCRIPTION = {}
 
 if __name__ == "__main__":
-    train_data = COATDataset.load_train() \
-        .filter(lambda entry: len(entry.qrs_complexes) > 50) \
-        .balanced_binary_partition({COATDataset.AF}, 200)
+    train_data = SPHDataset.load_train() \
+        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+        .balanced_binary_partition({SPHDataset.AFIB}, 1000)
 
-    validate_data = COATDataset.load_validate() \
-        .filter(lambda entry: len(entry.qrs_complexes) > 50) \
-        .balanced_binary_partition({COATDataset.AF}, 70)
+    validate_data = SPHDataset.load_validate() \
+        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+        .balanced_binary_partition({SPHDataset.AFIB}, 350)
 
     print(train_data)
     print(validate_data)
@@ -78,10 +84,10 @@ if __name__ == "__main__":
         DESCRIPTION,
         train_data,
         validate_data,
-        {COATDataset.AF},
-        {COATDataset.AF},
+        {SPHDataset.AFIB},
+        {SPHDataset.AFIB},
         10,
-        np.logspace(-2, 0, 30)
+        [0.05]
     )
 
     result.save()
