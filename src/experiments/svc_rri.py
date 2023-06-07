@@ -1,10 +1,11 @@
 from typing import Iterable, Any
 
+from src.data.qrs import ALL_PEAK_DETECTION_ALGORITHMS
 from ..data.dataset import ECGDataset, SPHDataset
 from ..experiments.util import ExperimentTracker, make_binary_labels, METRICS, compute_confusion
 from ..method.features import extract_normalized_rri
 from ..method.kernels import RBFKernel
-from ..method.svm_classifier import SVMKMEClassifier
+from ..method.svm_classifier import SVMVarianceClassifier
 
 
 def svc_rri(
@@ -29,17 +30,17 @@ def svc_rri(
     labels_train = make_binary_labels(train_ds.labels, train_af_labels)
     labels_validate = make_binary_labels(validate_ds.labels, validate_af_labels)
 
-    # make sure data has correct shape (n_instances, n_trajectories, length_trajectory, dim_trajectory)
+    # make sure data has correct shape (n_instances, n_trajectories, length_trajectory)
     # every RRI is considered a 1D trajectory
-    rri_train = rri_train[:, :, None, None]
-    rri_validate = rri_validate[:, :, None, None]
+    rri_train = rri_train[:, :, None]
+    rri_validate = rri_validate[:, :, None]
 
     setup = {"train": repr(train_ds), "validate": repr(validate_ds)}
     tracker = ExperimentTracker(name, setup, description)
 
     for bandwidth in bandwidths:
         kernel = RBFKernel(bandwidth)
-        classifier = SVMKMEClassifier(kernel, c)
+        classifier = SVMVarianceClassifier(kernel, c)
 
         classifier.fit(rri_train, labels_train)
         predictions_validate = classifier.predict(rri_validate)
@@ -65,29 +66,27 @@ def svc_rri(
     return tracker
 
 
-DESCRIPTION = {}
-
 if __name__ == "__main__":
-    train_data = SPHDataset.load_train() \
-        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
-        .balanced_binary_partition({SPHDataset.AFIB}, 30)
+    for algorithm_cls in ALL_PEAK_DETECTION_ALGORITHMS:
+        algorithm = algorithm_cls()
 
-    validate_data = SPHDataset.load_validate() \
-        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
-        .balanced_binary_partition({SPHDataset.AFIB}, 350)
+        train_data = SPHDataset.load_train(qrs_algorithm=algorithm) \
+            .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+            .balanced_binary_partition({SPHDataset.AFIB}, 1000)
 
-    print(train_data)
-    print(validate_data)
+        validate_data = SPHDataset.load_validate(qrs_algorithm=algorithm) \
+            .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+            .balanced_binary_partition({SPHDataset.AFIB}, 350)
 
-    result = svc_rri(
-        "SVM RRI",
-        DESCRIPTION,
-        train_data,
-        validate_data,
-        {SPHDataset.AFIB},
-        {SPHDataset.AFIB},
-        10,
-        [0.05]
-    )
+        result = svc_rri(
+            "SVM RRI",
+            {"r peak detection algorithm": algorithm.name},
+            train_data,
+            validate_data,
+            {SPHDataset.AFIB},
+            {SPHDataset.AFIB},
+            10,
+            [0.05]
+        )
 
-    # result.save()
+        result.save()

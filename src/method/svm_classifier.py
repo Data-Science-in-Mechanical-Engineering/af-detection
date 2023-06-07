@@ -13,11 +13,6 @@ class BaseClassifier(ABC):
     x: np.ndarray | None
 
     def __init__(self, kernel: AbstractKernel):
-        """
-        :param kernel: kernel method that is used to embed data into RKHS.
-        Must already be completely initialised.
-        :type kernel: AbstractKernel
-        """
         self.kernel = kernel
         self.x = None
 
@@ -32,6 +27,7 @@ class BaseClassifier(ABC):
 
 class SVClassifier(BaseClassifier, ABC):
     classifier: SVC
+    x: np.ndarray | None
 
     def __init__(self, kernel: AbstractKernel, c: float = 1.0):
         """ Constructs an SVM classifier.
@@ -42,6 +38,7 @@ class SVClassifier(BaseClassifier, ABC):
         """
         super().__init__(kernel)
         self.classifier = SVC(C=c, kernel="precomputed")
+        self.x = None
 
     @abstractmethod
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -53,6 +50,7 @@ class SVClassifier(BaseClassifier, ABC):
         self.classifier.fit(kernel_matrix, labels)
 
     def predict(self, x: np.ndarray) -> np.ndarray:
+        assert self.x is not None
         kernel_matrix = self.compute_kernel_matrix(x, self.x)
         return self.classifier.predict(kernel_matrix)
 
@@ -63,28 +61,28 @@ class SVClassifier(BaseClassifier, ABC):
 
 class SVMKMEClassifier(SVClassifier):
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        pairwise_kernel = self.kernel.pairwise(x, y)
-        assert pairwise_kernel.ndim == 4
+        pairwise_kernel = self.kernel.double_pairwise(x, y)
         return pairwise_kernel.mean(axis=(-1, -2))
 
 
 class SVMVarianceClassifier(SVClassifier):
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return np.array([
-            [self.kernel(xi.var().reshape(1), yj.var().reshape(1)) for yj in y]
-            for xi in x
-        ])
+        x_var = x.var(axis=1, keepdims=True)
+        y_var = y.var(axis=1, keepdims=True)
+        return self.kernel.double_pairwise(x_var, y_var).mean(axis=(-1, -2))
 
 
 class SVMFeatureVectorClassifier(SVClassifier):
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        assert x.shape[2] == x.shape[3] == y.shape[2] == y.shape[3] == 1
+        assert x.shape[2] == y.shape[2] == 1
 
-        n_features = min(x.shape[1], y.shape[1])
-        x = x[:, :n_features, :, :]
-        y = y[:, :n_features, :, :]
+        # make sure we have the same number of features between patients
+        n_features = min(x.shape[2], y.shape[2])
+        x = x[:, :n_features, :]
+        y = y[:, :n_features, :]
 
-        return np.array([
-            [self.kernel(xi.flatten(), yj.flatten()) for yj in y]
-            for xi in x
-        ])
+        # make sure we have only one trajectory such that only the last dimension is compared per pair of patients
+        x = x.reshape((x.shape[0], 1, n_features))
+        y = y.reshape((y.shape[0], 1, n_features))
+
+        return self.kernel.double_pairwise(x, y)
