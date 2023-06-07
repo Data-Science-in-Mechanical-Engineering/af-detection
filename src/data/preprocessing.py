@@ -1,18 +1,17 @@
 import pickle
 import random
-from zipfile import ZipFile
-
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple, TypeVar, Generic, Final
+from zipfile import ZipFile
 
 import numpy as np
 import tqdm
-from wfdb.processing import XQRS
 
-from ..data.dataset import Identifier, SPHIdentifier, COATIdentifier, SPHDataset
+from .qrs import PeakDetectionAlgorithm
+from ..data.dataset import Identifier, SPHIdentifier, COATIdentifier
 from ..data.util import RANDOM_SEED
 
 TLabel = TypeVar("TLabel")
@@ -89,13 +88,18 @@ def group_diagnostics_by_rhythm(diagnostics: Diagnostics) -> DiagnosticsGroup:
     return groups
 
 
-def extract_qrs_complexes(ecg_leads: DiagnosticLeadInfo) -> DiagnosticLeadInfo:
+def extract_qrs_complexes(
+        ecg_leads: DiagnosticLeadInfo,
+        qrs_algorithm: PeakDetectionAlgorithm,
+        sampling_rate: int
+) -> DiagnosticLeadInfo:
     """ Extracts QRS complexes from ECG signals.
 
     We represent the QRS complexes as the indices of RR peaks.
 
     Args:
         ecg_leads: A mapping from each diagnostic to a numpy ECG signal for each given lead.
+        qrs_algorithm: The algorithm to use for R peak extraction.
 
     Returns:
         A mapping from each diagnostic to a numpy array of RR peaks for each given lead.
@@ -107,13 +111,7 @@ def extract_qrs_complexes(ecg_leads: DiagnosticLeadInfo) -> DiagnosticLeadInfo:
 
     for diagnostic in progress:
         for lead, ecg_signal in ecg_leads[diagnostic].items():
-            xqrs = XQRS(
-                sig=ecg_signal,
-                fs=SPHDataset.FREQUENCY,
-            )
-
-            xqrs.detect(verbose=False)
-            qrs_complexes[diagnostic][lead] = np.array(xqrs.qrs_inds)
+            qrs_complexes[diagnostic][lead] = qrs_algorithm(ecg_signal, sampling_rate=sampling_rate)
 
     return qrs_complexes
 
@@ -190,17 +188,11 @@ def save_lead_signal(path: Path, signals: DiagnosticLeadInfo, filename_prefix: s
             np.save(signal_file, np.array(signals, dtype=object))
 
 
-def save_to_disk(folder: Path, diagnostics: Diagnostics, ecg_leads: DiagnosticLeadInfo, qrs_leads: DiagnosticLeadInfo):
-    save_diagnostics(folder, diagnostics)
-    save_lead_signal(folder, ecg_leads, "ecg_lead")
-    save_lead_signal(folder, qrs_leads, "qrs_lead")
-
-
 def assert_diagnostic_ecg_qrs_format(
-    diagnostics: Diagnostics,
-    ecg_leads: DiagnosticLeadInfo,
-    leads: set[int],
-    qrs_leads: DiagnosticLeadInfo
+        diagnostics: Diagnostics,
+        ecg_leads: DiagnosticLeadInfo,
+        leads: set[int],
+        qrs_leads: DiagnosticLeadInfo
 ):
     assert_message = "Bug alert: Format inconsistency between ECG signals and QRS complexes."
     assert len(ecg_leads) == len(qrs_leads) == len(diagnostics), assert_message
@@ -223,15 +215,20 @@ class Preprocessing(ABC, Generic[TDiagnostic]):
     test_folder: Final[Path]
     archive_folder: Final[Path]
 
+    qrs_algorithm: Final[PeakDetectionAlgorithm]
+    sampling_rate: int
+
     def __init__(
-        self,
-        p_train: float,
-        p_validate: float,
-        leads: set[int],
-        train_folder: Path,
-        validate_folder: Path,
-        test_folder: Path,
-        archive_path: Path
+            self,
+            p_train: float,
+            p_validate: float,
+            leads: set[int],
+            train_folder: Path,
+            validate_folder: Path,
+            test_folder: Path,
+            archive_path: Path,
+            qrs_algorithm: PeakDetectionAlgorithm,
+            sampling_rate: int
     ):
         assert len(leads) >= 1
 
@@ -242,6 +239,8 @@ class Preprocessing(ABC, Generic[TDiagnostic]):
         self.validate_folder = validate_folder
         self.test_folder = test_folder
         self.archive_folder = archive_path
+        self.qrs_algorithm = qrs_algorithm
+        self.sampling_rate = sampling_rate
 
     @abstractmethod
     def extract_diagnostics(self) -> Diagnostics[TDiagnostic]:
@@ -319,8 +318,10 @@ class Preprocessing(ABC, Generic[TDiagnostic]):
 
             print(f"Start unpacking to {folder}")
             ecg_leads = self.extract_ecg_signals(diagnostics)
-            qrs_leads = extract_qrs_complexes(ecg_leads)
+            qrs_leads = extract_qrs_complexes(ecg_leads, self.qrs_algorithm, self.sampling_rate)
 
             assert_diagnostic_ecg_qrs_format(diagnostics, ecg_leads, self.leads, qrs_leads)
 
-            save_to_disk(folder, diagnostics, ecg_leads, qrs_leads)
+            save_diagnostics(folder, diagnostics)
+            save_lead_signal(folder, ecg_leads, "ecg_lead")
+            save_lead_signal(folder, qrs_leads, f"qrs_{self.qrs_algorithm.name}_lead")

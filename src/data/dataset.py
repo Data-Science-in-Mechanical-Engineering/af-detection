@@ -10,6 +10,7 @@ from typing import TypeVar, Generic, Callable, Iterable, final
 
 import numpy as np
 
+from src.data.qrs import PeakDetectionAlgorithm, XQRSPeakDetectionAlgorithm
 from src.data.util import RANDOM_SEED, COATPath, SPHPath
 
 TLabel = TypeVar("TLabel", str, int)
@@ -49,7 +50,7 @@ class ECGDataset(ABC, Generic[TLabel]):
     labels: np.ndarray
 
     @classmethod
-    def load_from_folder(cls, folder: Path, lead: int = 0) -> ECGDataset:
+    def load_from_folder(cls, folder: Path, qrs_algorithm: PeakDetectionAlgorithm, lead: int = 0) -> ECGDataset:
         """ Creates a dataset instance from files in a given folder.
 
         The folder must contain an ECG file (.npy), a QRS complex file (.npy), a label file (.npy), and an identifiers
@@ -58,13 +59,14 @@ class ECGDataset(ABC, Generic[TLabel]):
 
         Args:
             folder: The folder from which to load
+            qrs_algorithm: The peak extraction algorithm to use for R peak detection.
             lead: The lead to extract data for.
 
         Returns:
             The dataset in the given folder.
         """
         ecg_path = folder / f"ecg_lead_{lead}.npy"
-        qrs_path = folder / f"qrs_lead_{lead}.npy"
+        qrs_path = folder / f"qrs_{qrs_algorithm.name}_lead_{lead}.npy"
         label_path = folder / f"labels.npy"
         identifier_path = folder / "identifiers.pickle"
 
@@ -111,8 +113,8 @@ class ECGDataset(ABC, Generic[TLabel]):
         assert self.n == labels.shape[0]
 
         self.identifiers = identifiers
-        self.ecg_signals = ecg_signals
-        self.qrs_complexes = qrs_complexes
+        self.ecg_signals = [ecg.astype(np.float) for ecg in ecg_signals]
+        self.qrs_complexes = [r_peaks.astype(np.int) for r_peaks in qrs_complexes]
         self.labels = labels
 
     def count_labels(self) -> dict[str, int]:
@@ -247,16 +249,16 @@ class COATDataset(ECGDataset):
     UNKNOWN = 2
 
     @staticmethod
-    def load_train() -> COATDataset:
-        return COATDataset.load_from_folder(COATPath.TRAIN_DATA)
+    def load_train(qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()) -> COATDataset:
+        return COATDataset.load_from_folder(COATPath.TRAIN_DATA, qrs_algorithm)
 
     @staticmethod
-    def load_validate() -> COATDataset:
-        return COATDataset.load_from_folder(COATPath.VALIDATE_DATA)
+    def load_validate(qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()) -> COATDataset:
+        return COATDataset.load_from_folder(COATPath.VALIDATE_DATA, qrs_algorithm)
 
     @staticmethod
-    def load_test() -> COATDataset:
-        return COATDataset.load_from_folder(COATPath.TEST_DATA)
+    def load_test(qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()) -> COATDataset:
+        return COATDataset.load_from_folder(COATPath.TEST_DATA, qrs_algorithm)
 
     def _copy_factory(
             self,
@@ -284,21 +286,34 @@ class SPHDataset(ECGDataset):
     AVRT = "AVRT"
 
     @staticmethod
-    def _load_from_sub_folder(folder: Path, denoised: bool) -> SPHDataset:
+    def _load_from_sub_folder(
+            folder: Path,
+            denoised: bool,
+            qrs_algorithm: PeakDetectionAlgorithm
+    ) -> SPHDataset:
         sub_folder = SPHPath.DENOISED_FOLDER if denoised else SPHPath.NOISY_FOLDER
-        return SPHDataset.load_from_folder(folder / sub_folder)
+        return SPHDataset.load_from_folder(folder / sub_folder, qrs_algorithm)
 
     @staticmethod
-    def load_train(denoised: bool = True) -> SPHDataset:
-        return SPHDataset._load_from_sub_folder(SPHPath.TRAIN_DATA, denoised)
+    def load_train(
+            denoised: bool = True,
+            qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()
+    ) -> SPHDataset:
+        return SPHDataset._load_from_sub_folder(SPHPath.TRAIN_DATA, denoised, qrs_algorithm)
 
     @staticmethod
-    def load_validate(denoised: bool = True) -> SPHDataset:
-        return SPHDataset._load_from_sub_folder(SPHPath.VALIDATE_DATA, denoised)
+    def load_validate(
+            denoised: bool = True,
+            qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()
+    ) -> SPHDataset:
+        return SPHDataset._load_from_sub_folder(SPHPath.VALIDATE_DATA, denoised, qrs_algorithm)
 
     @staticmethod
-    def load_test(denoised: bool = True) -> SPHDataset:
-        return SPHDataset._load_from_sub_folder(SPHPath.TEST_DATA, denoised)
+    def load_test(
+            denoised: bool = True,
+            qrs_algorithm: PeakDetectionAlgorithm = XQRSPeakDetectionAlgorithm()
+    ) -> SPHDataset:
+        return SPHDataset._load_from_sub_folder(SPHPath.TEST_DATA, denoised, qrs_algorithm)
 
     def _copy_factory(
             self,

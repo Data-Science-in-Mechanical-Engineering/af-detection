@@ -4,7 +4,9 @@ import numpy as np
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from src.data.dataset import ECGDataset
+from src.data.dataset import ECGDataset, SPHDataset
+from src.data.qrs import ALL_PEAK_DETECTION_ALGORITHMS
+from src.data.util import DATA_PATH
 from src.method.features import extract_rri
 
 
@@ -50,3 +52,16 @@ def plot_r_peaks(dataset: ECGDataset, title: str, path: Path | None = None):
         plt.show()
     else:
         plt.savefig(path / f"{title}.pdf")
+
+
+if __name__ == "__main__":
+    algorithms = list(map(lambda x: x(), ALL_PEAK_DETECTION_ALGORITHMS))
+
+    for algorithm in algorithms:
+        ds = SPHDataset.load_train(algorithm).subsample({SPHDataset.AFIB: 8})
+
+        plot_r_peaks(
+            ds,
+            f"Peak Extraction - {algorithm.name}",
+            DATA_PATH.parent.parent
+        )

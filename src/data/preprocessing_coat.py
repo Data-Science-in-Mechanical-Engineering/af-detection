@@ -4,6 +4,8 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
+from src.data.dataset import COATDataset
+from ..data.qrs import PeakDetectionAlgorithm
 from ..data.preprocessing import Diagnostics, COATDiagnostic, Preprocessing
 from ..data.util import COATPath
 
@@ -18,7 +20,7 @@ ID_STRING_COLUMN = "PatientId"
 
 
 class COATPreprocessing(Preprocessing[COATDiagnostic]):
-    def __init__(self, p_train: float, p_validate: float):
+    def __init__(self, p_train: float, p_validate: float, qrs_algorithm: PeakDetectionAlgorithm):
         super(COATPreprocessing, self).__init__(
             p_train,
             p_validate,
@@ -26,7 +28,9 @@ class COATPreprocessing(Preprocessing[COATDiagnostic]):
             COATPath.TRAIN_DATA,
             COATPath.VALIDATE_DATA,
             COATPath.TEST_DATA,
-            COATPath.RAW_DATA / RawCOATFile.ECG_ARCHIVE
+            COATPath.RAW_DATA / RawCOATFile.ECG_ARCHIVE,
+            qrs_algorithm,
+            COATDataset.FREQUENCY
         )
 
     def extract_diagnostics(self) -> Diagnostics:
@@ -55,8 +59,3 @@ class COATPreprocessing(Preprocessing[COATDiagnostic]):
             # noinspection PyTypeChecker
             ecg = np.genfromtxt(ecg_file, delimiter=",")
             return {0: ecg}  # data has only one lead (indexed 0)
-
-
-if __name__ == "__main__":
-    processing = COATPreprocessing(0.6, 0.2)
-    processing()

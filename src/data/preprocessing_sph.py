@@ -6,6 +6,8 @@ from zipfile import ZipFile
 
 import pandas as pd
 
+from .dataset import COATDataset
+from .qrs import PeakDetectionAlgorithm
 from ..data.preprocessing import SPHDiagnostic, Diagnostics, DiagnosticLeadInfo, load_excluded, Preprocessing
 from ..data.util import SPHPath
 
@@ -65,7 +67,14 @@ def download_sph_raw():
 class SPHPreprocessing(Preprocessing[SPHDiagnostic]):
     ecg_archive: Final[str]
 
-    def __init__(self, p_train: float, p_validate: float, leads: set[int] | None = None, denoised: bool = True):
+    def __init__(
+            self,
+            p_train: float,
+            p_validate: float,
+            qrs_algorithm: PeakDetectionAlgorithm,
+            leads: set[int] | None = None,
+            denoised: bool = True,
+    ):
         leads = {0} if leads is None else leads
         assert leads <= set(range(SPH_N_LEADS)), "Leads must be in {0, ..., 11}"
 
@@ -78,7 +87,9 @@ class SPHPreprocessing(Preprocessing[SPHDiagnostic]):
             SPHPath.TRAIN_DATA,
             SPHPath.VALIDATE_DATA,
             SPHPath.TEST_DATA,
-            SPHPath.RAW_DATA / ecg_archive
+            SPHPath.RAW_DATA / ecg_archive,
+            qrs_algorithm,
+            COATDataset.FREQUENCY
         )
 
         self.ecg_archive = ecg_archive
