@@ -1,4 +1,5 @@
 matplotlib==3.6.2
+neurokit2
 numpy==1.22.4
 openpyxl
 pandas~=1.5.3

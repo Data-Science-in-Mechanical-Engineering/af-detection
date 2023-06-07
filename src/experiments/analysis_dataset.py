@@ -1,10 +1,10 @@
 from pathlib import Path
 
+import numpy as np
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from src.data.dataset import ECGDataset, COATDataset
-from src.data.util import COATPath
+from src.data.dataset import ECGDataset
 from src.method.features import extract_rri
 
 
@@ -36,9 +36,17 @@ def plot_rri_kde(dataset: ECGDataset, title: str, path: Path | None = None):
         plt.savefig(path / f"{title}.pdf")
 
 
-if __name__ == "__main__":
-    data = COATDataset.load_from_folder(COATPath.TRAIN_DATA) \
-        .filter(lambda entry: len(entry.qrs_complexes) > 50) \
-        .subsample({0: 10})
+def plot_r_peaks(dataset: ECGDataset, title: str, path: Path | None = None):
+    figure, axes = plt.subplots(nrows=dataset.n, figsize=(8, 1.5 * dataset.n))
+    figure.suptitle(title)
+    plt.subplots_adjust(hspace=1)
 
-    plot_rri_kde(data, "KDE Healthy")
+    for axis, ecg, r_peaks in zip(axes, dataset.ecg_signals, dataset.qrs_complexes):
+        x = np.arange(1, ecg.size + 1)
+        axis.plot(x, ecg)
+        axis.scatter(r_peaks, ecg[r_peaks], color="r")
+
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path / f"{title}.pdf")
