@@ -1,11 +1,11 @@
 from typing import Iterable, Any
 
-from src.data.qrs import ALL_PEAK_DETECTION_ALGORITHMS
 from ..data.dataset import ECGDataset, SPHDataset
+from ..data.qrs import XQRSPeakDetectionAlgorithm
 from ..experiments.util import ExperimentTracker, make_binary_labels, METRICS, compute_confusion
 from ..method.features import extract_normalized_rri
 from ..method.kernels import RBFKernel
-from ..method.svm_classifier import SVMVarianceClassifier
+from ..method.svm_classifier import SVMKMEClassifier
 
 
 def svc_rri(
@@ -40,7 +40,7 @@ def svc_rri(
 
     for bandwidth in bandwidths:
         kernel = RBFKernel(bandwidth)
-        classifier = SVMVarianceClassifier(kernel, c)
+        classifier = SVMKMEClassifier(kernel, c)
 
         classifier.fit(rri_train, labels_train)
         predictions_validate = classifier.predict(rri_validate)
@@ -67,26 +67,25 @@ def svc_rri(
 
 
 if __name__ == "__main__":
-    for algorithm_cls in ALL_PEAK_DETECTION_ALGORITHMS:
-        algorithm = algorithm_cls()
+    qrs_algorithm = XQRSPeakDetectionAlgorithm()
 
-        train_data = SPHDataset.load_train(qrs_algorithm=algorithm) \
-            .filter(lambda entry: len(entry.qrs_complexes) > 7) \
-            .balanced_binary_partition({SPHDataset.AFIB}, 1000)
+    train_data = SPHDataset.load_train(qrs_algorithm=qrs_algorithm) \
+        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+        .balanced_binary_partition({SPHDataset.AFIB}, 1000)
 
-        validate_data = SPHDataset.load_validate(qrs_algorithm=algorithm) \
-            .filter(lambda entry: len(entry.qrs_complexes) > 7) \
-            .balanced_binary_partition({SPHDataset.AFIB}, 350)
+    validate_data = SPHDataset.load_validate(qrs_algorithm=qrs_algorithm) \
+        .filter(lambda entry: len(entry.qrs_complexes) > 7) \
+        .balanced_binary_partition({SPHDataset.AFIB}, 350)
 
-        result = svc_rri(
-            "SVM RRI",
-            {"r peak detection algorithm": algorithm.name},
-            train_data,
-            validate_data,
-            {SPHDataset.AFIB},
-            {SPHDataset.AFIB},
-            10,
-            [0.05]
-        )
+    result = svc_rri(
+        "SVM RRI",
+        {"r peak detection algorithm": qrs_algorithm.name},
+        train_data,
+        validate_data,
+        {SPHDataset.AFIB},
+        {SPHDataset.AFIB},
+        10,
+        [0.05]
+    )
 
-        result.save()
+    result.save()
