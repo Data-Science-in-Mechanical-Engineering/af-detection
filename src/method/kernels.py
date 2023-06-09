@@ -4,7 +4,7 @@ import numpy as np
 
 
 class AbstractKernel(ABC):
-    def single_pairwise(self, x: np.ndarray, y: np.ndarray = None) -> np.ndarray:
+    def single_pairwise(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         """ Computes the kernel matrix for every pair of trajectories of two single instances.
 
         We add an instance dimension to both x and y and then apply the more general kernel matrix function for every
@@ -31,7 +31,7 @@ class AbstractKernel(ABC):
         # shape: (m_trajectories_x, m_trajectories_y)
         return pairwise_instance_kernel[0, 0].reshape(x.shape[0], y.shape[0])
 
-    def double_pairwise(self, x: np.ndarray, y: np.ndarray = None) -> np.ndarray:
+    def double_pairwise(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         """ Computes the kernel matrix for every pair of instances and trajectories.
 
         For every pair of instances we compute, for every pair of their trajectories, the squared euclidean distance
