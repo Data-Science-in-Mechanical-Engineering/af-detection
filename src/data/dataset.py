@@ -31,6 +31,13 @@ class COATIdentifier(Identifier):
     device_id: int
     patient_id: int
 
+    @staticmethod
+    def from_string_patient_id(patient_id: str, delimiter: str = "-PAT-"):
+        split = patient_id.split(delimiter)
+        clean_split = map(str.strip, split)
+        device_id, patient_id = map(int, clean_split)
+        return COATIdentifier(device_id, patient_id)
+
 
 @dataclass(frozen=True)
 class Entry(Generic[TLabel]):

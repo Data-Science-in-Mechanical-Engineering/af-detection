@@ -40,11 +40,9 @@ class COATDiagnostic(Diagnostic[int]):
     patient_id: int
 
     @staticmethod
-    def from_string_patient_id(rhythm: int, patient_id: str, delimiter="-PAT-"):
-        split = patient_id.split(delimiter)
-        clean_split = map(str.strip, split)
-        device_id, patient_id = map(int, clean_split)
-        return COATDiagnostic(rhythm, device_id, patient_id)
+    def from_string_patient_id(rhythm: int, patient_id: str):
+        identifier = COATIdentifier.from_string_patient_id(patient_id)
+        return COATDiagnostic(rhythm, identifier.device_id, identifier.patient_id)
 
     def get_identifier(self) -> COATIdentifier:
         return COATIdentifier(self.device_id, self.patient_id)

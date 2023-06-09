@@ -1,3 +1,5 @@
+# TODO: currently we have no heuristics that are actually used -> remove this module or come up with a good heuristic
+
 import numpy as np
 from sklearn.metrics import pairwise_distances
 

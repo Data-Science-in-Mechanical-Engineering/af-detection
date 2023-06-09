@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from src.data.dataset import ECGDataset, SPHDataset
+from src.data.dataset import ECGDataset, SPHDataset, COATDataset
 from src.data.qrs import ALL_PEAK_DETECTION_ALGORITHMS
 from src.data.util import DATA_PATH
 from src.method.features import extract_rri
@@ -39,7 +39,7 @@ def plot_rri_kde(dataset: ECGDataset, title: str, path: Path | None = None):
 
 
 def plot_r_peaks(dataset: ECGDataset, title: str, path: Path | None = None):
-    figure, axes = plt.subplots(nrows=dataset.n, figsize=(8, 1.5 * dataset.n))
+    figure, axes = plt.subplots(nrows=dataset.n, figsize=(20, 1.5 * dataset.n))
     figure.suptitle(title)
     plt.subplots_adjust(hspace=1)
 
@@ -55,6 +55,18 @@ def plot_r_peaks(dataset: ECGDataset, title: str, path: Path | None = None):
 
 
 if __name__ == "__main__":
+    tmp_ds = COATDataset.load_validate() \
+        .filter(lambda entry: (entry.identifier.device_id, entry.identifier.patient_id) in {
+        (27, 34), (13, 37), (21, 117)})
+
+    plot_r_peaks(
+        tmp_ds,
+        f"Common False Negatives",
+        DATA_PATH.parent.parent
+    )
+
+    exit(1)
+
     algorithms = list(map(lambda x: x(), ALL_PEAK_DETECTION_ALGORITHMS))
 
     for algorithm in algorithms:
