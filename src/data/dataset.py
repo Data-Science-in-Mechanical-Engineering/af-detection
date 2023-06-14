@@ -252,7 +252,7 @@ class COATDataset(ECGDataset):
 
     # class labels
     noAF = 0
-    AF = 1
+    AFIB = 1
     UNKNOWN = 2
 
     @staticmethod
