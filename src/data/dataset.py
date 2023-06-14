@@ -251,7 +251,7 @@ class COATDataset(ECGDataset):
     FREQUENCY = int(12_000 / DURATION_IN_SEC)
 
     # class labels
-    noAF = 0
+    noAFIB = 0
     AFIB = 1
     UNKNOWN = 2
 
