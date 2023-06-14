@@ -65,6 +65,7 @@ class SVMKMEClassifier(SVClassifier):
     We apply the kernel to each pair of trajectories of each pair of patients.
     We then take the mean over these kernel values to obtain the kernel mean embedding.
     """
+
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         pairwise_kernel = self.kernel.double_pairwise(x, y)
         return pairwise_kernel.mean(axis=(-1, -2))
@@ -76,6 +77,7 @@ class SVMMeanKernelClassifier(SVClassifier):
     We apply the kernel to the mean distances between each pair of trajectories for each pair of patients to obtain the
     kernel matrix.
     """
+
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         return self.kernel.double_pairwise_mean(x, y)
 
@@ -86,6 +88,7 @@ class SVMVarianceClassifier(SVClassifier):
     We only consider the variances of trajectories as features.
     We then apply the kernel to the variances for each pair of patients to obtain the kernel matrix.
     """
+
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         assert x.shape[2] == y.shape[2] == 1
 
@@ -99,7 +102,7 @@ class SVMFeatureVectorClassifier(SVClassifier):
         assert x.shape[2] == y.shape[2] == 1
 
         # make sure we have the same number of features between patients
-        n_features = min(x.shape[2], y.shape[2])
+        n_features = min(x.shape[1], y.shape[1])
         x = x[:, :n_features, :]
         y = y[:, :n_features, :]
 
@@ -107,4 +110,4 @@ class SVMFeatureVectorClassifier(SVClassifier):
         x = x.reshape((x.shape[0], 1, n_features))
         y = y.reshape((y.shape[0], 1, n_features))
 
-        return self.kernel.double_pairwise(x, y)
+        return self.kernel.double_pairwise(x, y).reshape(x.shape[0], y.shape[0])
