@@ -39,7 +39,7 @@ class AbstractKernel(ABC):
 
         Returns:
             The kernel matrix for every pair of trajectories.
-            The shape is (n_instances_x, n_instances_y, m_trajectories_x, m_trajectories_y).
+            The shape is (m_trajectories_x, m_trajectories_y).
         """
         assert x.ndim == y.ndim == 2, "Inputs must have shape (m_trajectories, dim_trajectory)."
         assert x.shape[1] == y.shape[1], "Trajectory dimension must match."
