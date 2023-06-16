@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import timeit
 from abc import abstractmethod, ABC
 
 import numpy as np
@@ -67,8 +68,7 @@ class SVMKMEClassifier(SVClassifier):
     """
 
     def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        pairwise_kernel = self.kernel.double_pairwise(x, y)
-        return pairwise_kernel.mean(axis=(-1, -2))
+        return self.kernel.double_pairwise_kme(x, y)
 
 
 class SVMMeanKernelClassifier(SVClassifier):
