@@ -83,33 +83,6 @@ def compute_double_pairwise_kernel_matrix(
 
 
 class AbstractKernel(ABC):
-    def single_pairwise(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        """ Computes the kernel matrix for every pair of trajectories of two single instances.
-
-        We add an instance dimension to both x and y and then apply the more general kernel matrix function for every
-        pair of instances and every pair of their trajectories.
-
-        Args:
-            x: Feature matrix of shape (m_trajectories_x, dim_trajectory).
-            y: Feature matrix of shape (m_trajectories_y, dim_trajectory).
-
-        Returns:
-            The kernel matrix for every pair of trajectories.
-            The shape is (m_trajectories_x, m_trajectories_y).
-        """
-        assert x.ndim == y.ndim == 2, "Inputs must have shape (m_trajectories, dim_trajectory)."
-        assert x.shape[1] == y.shape[1], "Trajectory dimension must match."
-
-        # add instance dimensions
-        x = x[None, :, :]  # shape: (1, m_trajectories_x, dim_trajectory)
-        y = y[None, :, :]  # shape: (1, m_trajectories_y, dim_trajectory)
-
-        # shape: (1, 1, m_trajectories_x, m_trajectories_y, dim_trajectory)
-        pairwise_instance_kernel = self.double_pairwise(x, y)
-
-        # shape: (m_trajectories_x, m_trajectories_y)
-        return pairwise_instance_kernel[0, 0].reshape(x.shape[0], y.shape[0])
-
     def double_pairwise(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         """ Computes the kernel matrix for every pair of instances and trajectories.
 
