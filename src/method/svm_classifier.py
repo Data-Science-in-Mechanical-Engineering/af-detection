@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import timeit
+import math
 from abc import abstractmethod, ABC
 
 import numpy as np
@@ -103,11 +103,16 @@ class SVMFeatureVectorClassifier(SVClassifier):
 
         # make sure we have the same number of features between patients
         n_features = min(x.shape[1], y.shape[1])
-        x = x[:, :n_features, :]
-        y = y[:, :n_features, :]
+        x = x[:, -n_features:, :]
+        y = y[:, -n_features:, :]
 
         # make sure we have only one trajectory such that only the last dimension is compared per pair of patients
         x = x.reshape((x.shape[0], 1, n_features))
         y = y.reshape((y.shape[0], 1, n_features))
+
+        # normalize vectors by the square root of their dimension
+        # this is to make euclidean distances independent of the vector dimension (on expectation)
+        x = x / math.sqrt(n_features)
+        y = y / math.sqrt(n_features)
 
         return self.kernel.double_pairwise(x, y).reshape(x.shape[0], y.shape[0])
