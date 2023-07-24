@@ -246,6 +246,21 @@ class ProductKernel(BaseKernel):
             raise ValueError(f"Multiplication of {self.__class__.__name__} with {type(other)} is not defined.")
 
     def double_pairwise(self, x: list[np.ndarray], y: list[np.ndarray]) -> np.ndarray:
+        """
+        Computes the kernel matrix for every pair of instances and trajectories.
+
+        For every pair of instances we compute, for every pair of their trajectories, the squared euclidean distance
+        between the trajectories. The kernel transformation is then applied to that distance per feature.
+        Finally, we return the element-wise product of each simple kernel matrix.
+
+        Args:
+            x: List of features matrices [x_1, ..., x_n] where each x_i is a np.ndarray of shape (n_instances_x, m_x_trajectories, dim_trajcetory_i)
+            y: List of features matrices [y_1, ..., y_n] where each y_i is a np.ndarray of shape (n_instances_y, m_y_trajectories, dim_trajcetory_i)
+
+        Returns:
+            The product kernel matrix for every pair of instances and every pair of trajectories.
+            The shape is (n_instances_x, n_instances_y, m_trajectories_x, m_trajectories_y).
+        """
         self._check_validity(x)
         self._check_validity(y)
         self._assert_equal_n_trajectories(x)
