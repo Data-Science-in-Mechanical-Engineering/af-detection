@@ -48,9 +48,7 @@ class SVClassifier(BaseClassifier, ABC):
         self.x = None
 
     @abstractmethod
-    def compute_kernel_matrix(
-            self, x: np.ndarray, y: np.ndarray
-    ) -> np.ndarray:
+    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
     def fit(self, x: np.ndarray | list[np.ndarray], labels: np.ndarray):
@@ -78,9 +76,7 @@ class SVMKMEClassifier(SVClassifier):
     We then take the mean over these kernel values to obtain the kernel mean embedding.
     """
 
-    def compute_kernel_matrix(
-            self, x: np.ndarray, y: np.ndarray
-    ) -> np.ndarray:
+    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         return self.kernel.double_pairwise_kme(x, y)
 
 
@@ -91,9 +87,7 @@ class SVMMeanKernelClassifier(SVClassifier):
     kernel matrix.
     """
 
-    def compute_kernel_matrix(
-            self, x: np.ndarray, y: np.ndarray
-    ) -> np.ndarray:
+    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         return self.kernel.double_pairwise_mean(x, y)
 
 
@@ -104,22 +98,16 @@ class SVMVarianceClassifier(SVClassifier):
     We then apply the kernel to the variances for each pair of patients to obtain the kernel matrix.
     """
 
-    def compute_kernel_matrix(
-            self, x: np.ndarray, y: np.ndarray
-    ) -> np.ndarray:
+    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         assert x.shape[2] == y.shape[2] == 1
 
         x_var = x.var(axis=1, keepdims=True)
         y_var = y.var(axis=1, keepdims=True)
-        return self.kernel.double_pairwise(x_var, y_var).reshape(
-            x.shape[0], y.shape[0]
-        )
+        return self.kernel.double_pairwise(x_var, y_var).reshape(x.shape[0], y.shape[0])
 
 
 class SVMFeatureVectorClassifier(SVClassifier):
-    def compute_kernel_matrix(
-            self, x: np.ndarray, y: np.ndarray
-    ) -> np.ndarray:
+    def compute_kernel_matrix(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         assert x.shape[2] == y.shape[2] == 1
 
         # make sure we have the same number of features between patients
@@ -136,6 +124,4 @@ class SVMFeatureVectorClassifier(SVClassifier):
         x = x / math.sqrt(n_features)
         y = y / math.sqrt(n_features)
 
-        return self.kernel.double_pairwise(x, y).reshape(
-            x.shape[0], y.shape[0]
-        )
+        return self.kernel.double_pairwise(x, y).reshape(x.shape[0], y.shape[0])

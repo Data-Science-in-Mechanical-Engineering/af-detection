@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-DEFAULT_BATCH_SIZE = 200
+DEFAULT_BATCH_SIZE = 50
 
 
 def double_pairwise_squared_euclidean_distances(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -114,7 +114,7 @@ class BaseKernel(ABC):
     # TODO: check type hint, from python 3.10 onwards possible to delete quotation marks
     #  check for any derived class as well
     @abstractmethod
-    def __mul__(self, other) -> 'ProductKernel':
+    def __mul__(self, other) -> -ProductKernel:
         raise NotImplementedError
 
 
@@ -142,7 +142,6 @@ class SimpleKernel(BaseKernel):
             The kernel matrix for every pair of instances and every pair of trajectories.
             The shape is (n_instances_x, n_instances_y, m_trajectories_x, m_trajectories_y).
         """
-
         # for every pair of instances: for every pair of trajectories: squared euclidean distance between trajectories
         # shape: (n_instances_x, n_instances_y, m_trajectories_x, m_trajectories_y)
         pairwise_distances = double_pairwise_squared_euclidean_distances(x, y)
