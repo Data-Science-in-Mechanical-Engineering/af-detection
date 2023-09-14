@@ -45,7 +45,7 @@ def plot_dataset_logsize_experiment(
         x="size",
         y="score",
         hue="label",
-        palette=Style.VIBRANT_COLOR_PALETTE_DISCRETE(2),
+        palette=Style.vibrant_colors_discrete(2),
         showfliers=False
     )
 
