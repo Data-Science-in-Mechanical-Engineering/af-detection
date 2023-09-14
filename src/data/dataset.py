@@ -3,10 +3,11 @@ from __future__ import annotations
 import os.path
 import pickle
 from abc import ABC, abstractmethod
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
-from typing import TypeVar, Generic, Callable, Iterable, final
+from typing import TypeVar, Generic, Callable, Iterable, final, Final
 
 import numpy as np
 
@@ -18,12 +19,17 @@ TLabel = TypeVar("TLabel", str, int)
 
 @dataclass(frozen=True)
 class Identifier(ABC):
-    pass
+    @abstractmethod
+    def __str__(self) -> str:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)
 class SPHIdentifier(Identifier):
     filename: str
+
+    def __str__(self) -> str:
+        return self.filename
 
 
 @dataclass(frozen=True)
@@ -38,6 +44,9 @@ class COATIdentifier(Identifier):
         device_id, patient_id = map(int, clean_split)
         return COATIdentifier(device_id, patient_id)
 
+    def __str__(self) -> str:
+        return f"DEV{self.device_id}-PAT{self.patient_id}"
+
 
 @dataclass(frozen=True)
 class Entry(Generic[TLabel]):
@@ -50,11 +59,11 @@ class Entry(Generic[TLabel]):
 class ECGDataset(ABC, Generic[TLabel]):
     FREQUENCY: float
 
-    n: int
-    identifiers: list[Identifier]
-    ecg_signals: list[np.ndarray]
-    qrs_complexes: list[np.ndarray]
-    labels: np.ndarray
+    n: Final[int]
+    identifiers: Final[list[Identifier]]
+    ecg_signals: Final[list[np.ndarray]]
+    qrs_complexes: Final[list[np.ndarray]]
+    labels: Final[np.ndarray]
 
     @classmethod
     def load_from_folder(cls, folder: Path, qrs_algorithm: PeakDetectionAlgorithm, lead: int = 0) -> ECGDataset:
@@ -120,20 +129,34 @@ class ECGDataset(ABC, Generic[TLabel]):
         assert self.n == labels.shape[0]
 
         self.identifiers = identifiers
-        self.ecg_signals = [ecg.astype(np.float) for ecg in ecg_signals]
-        self.qrs_complexes = [r_peaks.astype(np.int) for r_peaks in qrs_complexes]
+        self.ecg_signals = [ecg.astype(float) for ecg in ecg_signals]
+        self.qrs_complexes = [r_peaks.astype(int) for r_peaks in qrs_complexes]
         self.labels = labels
 
-    def count_labels(self) -> dict[str, int]:
+    def description(self) -> dict[str]:
         return {
+            "name": self.__class__.__name__,
+            "composition": {
+                str(key): int(value)
+                for key, value in self.count_labels().items()
+            }
+        }
+
+    @cache
+    def count_labels(self) -> dict[str, int]:
+        return defaultdict(lambda: 0, {
             str(key): int(count)
             for key, count in Counter(self.labels).items()
-        }
+        })
+
+    def count(self, *labels: str | int) -> int:
+        count = self.count_labels()
+        return sum(count[str(label)] for label in labels)
 
     def label_domain(self) -> set[TLabel]:
         return set(self.labels)
 
-    def subsample(self, chunks: dict[TLabel, int], seed: int = RANDOM_SEED) -> ECGDataset:
+    def subsample(self, chunks: dict[TLabel, int], seed: int | None = RANDOM_SEED) -> ECGDataset:
         """ Creates a random subset of the dataset containing the specified number of samples for each class.
 
         For each specified class, we uniformly choose the specified number of indices for that class without
@@ -147,8 +170,10 @@ class ECGDataset(ABC, Generic[TLabel]):
         Returns:
             A randomly sub-sampled dataset containing the specified number of samples per class.
         """
-        np.random.seed(seed)
         indices = []
+
+        if seed is not None:
+            np.random.seed(seed)
 
         # for each specified class, choose the specified number of indices for that class without replacement
         for label, size in chunks.items():
@@ -174,9 +199,16 @@ class ECGDataset(ABC, Generic[TLabel]):
             if condition(entry)
         ])
 
-    def balanced_binary_partition(self, label_group: set[TLabel], size: int) -> ECGDataset:
+    def balanced_binary_partition(
+            self,
+            label_group: set[TLabel],
+            size: int,
+            seed: int | None = RANDOM_SEED
+    ) -> ECGDataset:
         assert label_group < self.label_domain()
-        np.random.seed(RANDOM_SEED)
+
+        if seed is not None:
+            np.random.seed(seed)
 
         # obtain indices that partition the dataset in accordance to the label partition
         is_group_1 = np.isin(self.labels, list(label_group))
@@ -233,7 +265,7 @@ class ECGDataset(ABC, Generic[TLabel]):
             yield Entry(identifier, ecg, qrs, label)
 
     def __repr__(self):
-        return f"{type(self).__name__}({repr(self.count_labels())})"
+        return f"{type(self).__name__}({dict(self.count_labels())})"
 
     @abstractmethod
     def _copy_factory(

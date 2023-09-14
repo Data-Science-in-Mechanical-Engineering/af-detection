@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
+from typing import final
 
 import numpy as np
 from sklearn.svm import SVC
@@ -36,15 +37,17 @@ class SVClassifier(BaseClassifier, ABC):
     classifier: SVC
     x: np.ndarray | None
 
-    def __init__(self, kernel: BaseKernel, c: float = 1.0):
+    @final
+    def __init__(self, kernel: BaseKernel, c: float = 1.0, class_weight_proportion: float = 1.0):
         """Constructs an SVM classifier.
 
         Args:
             kernel: The kernel method used to compute the similarity between two trajectories.
-            c: Regularisation parameter for the SVM.
+            c: TODO
+            class_weight_proportion: TODO
         """
         super().__init__(kernel)
-        self.classifier = SVC(C=c, kernel="precomputed")
+        self.classifier = SVC(C=c, class_weight={0: 1.0, 1: class_weight_proportion}, kernel="precomputed")
         self.x = None
 
     @abstractmethod

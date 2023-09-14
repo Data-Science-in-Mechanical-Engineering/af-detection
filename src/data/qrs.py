@@ -55,17 +55,21 @@ Nabian2018 = make_neurokit_peak_extraction_algorithm("nabian2018")
 Rodrigues2021 = make_neurokit_peak_extraction_algorithm("rodrigues2021")
 Promac = make_neurokit_peak_extraction_algorithm("promac")
 
-ALL_PEAK_DETECTION_ALGORITHMS = [
+
+ALL_WORKING_PEAK_DETECTION_ALGORITHMS = [
     XQRSPeakDetectionAlgorithm,
-    Neurokit,
-    PanTompkins1985,
     Hamilton2002,
     Zong2003,
     Christov2004,
-    Gamboa2008,
     Elgendi2010,
-    Kalidas2017,
-    Nabian2018,
     Rodrigues2021,
     Promac
+]
+
+ALL_PEAK_DETECTION_ALGORITHMS = ALL_WORKING_PEAK_DETECTION_ALGORITHMS + [
+    Neurokit,
+    PanTompkins1985,
+    Gamboa2008,
+    Kalidas2017,
+    Nabian2018,
 ]

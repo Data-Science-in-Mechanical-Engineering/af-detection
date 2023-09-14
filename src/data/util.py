@@ -26,4 +26,4 @@ class COATPath:
     TEST_DATA = ROOT / "test"
 
 
-RANDOM_SEED = 42
+RANDOM_SEED = 1
