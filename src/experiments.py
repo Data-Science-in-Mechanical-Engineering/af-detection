@@ -108,8 +108,9 @@ class Experiment(ABC, Generic[KernelT, ParametrizationT]):
             classifier.fit(features_train, labels_train)
             predictions_validate = classifier.predict(features_validate)
             description = asdict(parametrization)
-            outcome = Outcome.evaluate(description, dataset_validate, predictions_validate, labels_validate)
+            distances = classifier.decision_function(features_validate)
 
+            outcome = Outcome.evaluate(description, dataset_validate, predictions_validate, labels_validate, distances)
             print(f"{outcome} \t {parametrization}")
             outcomes.append(outcome)
 

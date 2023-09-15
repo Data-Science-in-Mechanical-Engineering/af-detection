@@ -49,7 +49,7 @@ def plot_confusion(outcome: Outcome, label_mapping: Callable[[str], str], path: 
         xticklabels=x_labels,
         yticklabels=y_labels,
         fmt="",
-        cmap=Style.VIBRANT_COLOR_PALETTE,
+        cmap=Style.VIBRANT_COLOR_PALETTE.reversed(),
         annot_kws={"size": Style.LABEL_FONT_SIZE}
     )
 

@@ -62,12 +62,13 @@ def plot_roc(
         palette=point_colors
     )
 
+    plt.rcParams["pgf.texsystem"] = "pdflatex"
     plt.xlabel(label_metric_x, size=Style.LABEL_FONT_SIZE)
     plt.ylabel(label_metric_y, size=Style.LABEL_FONT_SIZE)
     plt.tick_params(labelsize=Style.LABEL_FONT_SIZE)
 
     sm = plt.cm.ScalarMappable(cmap=point_colors, norm=plt.Normalize(min_rho, max_rho))
-    cb = ax.figure.colorbar(sm, ax=ax, label="Rho")
+    cb = ax.figure.colorbar(sm, ax=ax, label=r"Relative penalization $\rho$")
     cb.outline.set_visible(False)
     ax.figure.axes[-1].tick_params(labelsize=Style.LABEL_FONT_SIZE)
     ax.figure.axes[-1].yaxis.label.set_size(Style.LABEL_FONT_SIZE)

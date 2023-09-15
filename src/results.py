@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -11,7 +12,7 @@ from uuid import uuid4, UUID
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
 
-from src.data.dataset import ECGDataset
+from .data.dataset import ECGDataset
 
 Description = dict[str]
 
@@ -25,12 +26,24 @@ def specificity_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return recall_score(y_true, y_pred, pos_label=0)
 
 
+def distance_by_identifier(identifiers: list[str], distances: list[float]) -> dict[str, float]:
+    if not distances:
+        return {identifier: math.inf for identifier in identifiers}
+
+    assert len(identifiers) == len(distances)
+
+    return {
+        identifier: distance
+        for identifier, distance in zip(identifiers, distances)
+    }
+
+
 def compute_confusion(
-    predictions_binary: np.ndarray,
-    labels_binary: np.ndarray,
-    actual_labels: np.ndarray,
-    prediction_mapping: dict[Any, str] | None = None,
-    label_mapping: dict[Any, str] | None = None
+        predictions_binary: np.ndarray,
+        labels_binary: np.ndarray,
+        actual_labels: np.ndarray,
+        prediction_mapping: dict[Any, str] | None = None,
+        label_mapping: dict[Any, str] | None = None
 ) -> dict[str, dict[str, int]]:
     assert predictions_binary.ndim == 1
     assert labels_binary.ndim == 1
@@ -105,13 +118,16 @@ class Outcome:
     confusion: dict[str, dict[str]]
     false_positives: list[str]
     false_negatives: list[str]
+    false_positive_distances: list[float]
+    false_negative_distances: list[float]
 
     @staticmethod
     def evaluate(
-        parametrization: dict[str],
-        dataset_validate: ECGDataset,
-        predictions_binary: np.ndarray,
-        labels_binary: np.ndarray
+            parametrization: dict[str],
+            dataset_validate: ECGDataset,
+            predictions_binary: np.ndarray,
+            labels_binary: np.ndarray,
+            distances: np.ndarray | None = None
     ) -> Outcome:
         assert predictions_binary.ndim == 1
         assert labels_binary.ndim == 1
@@ -135,6 +151,8 @@ class Outcome:
 
         false_positive_identifiers = [str(dataset_validate.identifiers[index]) for index in false_positives]
         false_negative_identifiers = [str(dataset_validate.identifiers[index]) for index in false_negatives]
+        false_positive_distances = distances[false_positives] if distances is not None else []
+        false_negative_distances = distances[false_negatives] if distances is not None else []
 
         return Outcome(
             uuid4(),
@@ -146,7 +164,9 @@ class Outcome:
             specificity,
             confusion,
             false_positive_identifiers,
-            false_negative_identifiers
+            false_negative_identifiers,
+            list(false_positive_distances),
+            list(false_negative_distances)
         )
 
     @staticmethod
@@ -161,8 +181,16 @@ class Outcome:
             data["scores"]["specificity"],
             data["confusion"],
             data["false_positives"],
-            data["false_negatives"]
+            data["false_negatives"],
+            data["false_positive_distances"] if "false_positive_distances" in data else [],
+            data["false_negative_distances"] if "false_negative_distances" in data else []
         )
+
+    def false_positive_distance_by_identifier(self) -> dict[str, float]:
+        return distance_by_identifier(self.false_positives, self.false_positive_distances)
+
+    def false_negative_distance_by_identifier(self) -> dict[str, float]:
+        return distance_by_identifier(self.false_negatives, self.false_negative_distances)
 
     def as_dict(self) -> dict[str]:
         return {
@@ -177,7 +205,9 @@ class Outcome:
             },
             "confusion": self.confusion,
             "false_positives": self.false_positives,
-            "false_negatives": self.false_negatives
+            "false_negatives": self.false_negatives,
+            "false_positive_distances": self.false_positive_distances,
+            "false_negative_distances": self.false_negative_distances
         }
 
     def __repr__(self):

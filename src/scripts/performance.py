@@ -1,8 +1,8 @@
 from argparse import Namespace, ArgumentParser
 
-from src.experiments import ExperimentRRI
-from src.scripts.util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, \
+from .util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, \
     args_add_c, args_add_classifier, args_add_bandwidth_rri, args_add_setup, finish_experiment
+from ..experiments import ExperimentRRI
 
 
 def main_performance_experiment_rri(arguments: Namespace):

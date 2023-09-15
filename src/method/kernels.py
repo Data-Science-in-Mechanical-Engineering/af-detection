@@ -114,7 +114,7 @@ class BaseKernel(ABC):
     # TODO: check type hint, from python 3.10 onwards possible to delete quotation marks
     #  check for any derived class as well
     @abstractmethod
-    def __mul__(self, other) -> -ProductKernel:
+    def __mul__(self, other) -> ProductKernel:
         raise NotImplementedError
 
 
