@@ -49,7 +49,7 @@ class COATIdentifier(Identifier):
 
 
 @dataclass(frozen=True)
-class Entry(Generic[TLabel]):
+class ECGEntry(Generic[TLabel]):
     identifier: Identifier
     ecg_signal: np.ndarray
     qrs_complexes: np.ndarray
@@ -185,7 +185,7 @@ class ECGDataset(ABC, Generic[TLabel]):
         indices = np.concatenate(indices)
         return self._subsample_from_indices(indices)
 
-    def filter(self, condition: Callable[[Entry[TLabel]], bool]) -> ECGDataset:
+    def filter(self, condition: Callable[[ECGEntry[TLabel]], bool]) -> ECGDataset:
         """ Creates a subset of the dataset containing exactly those entries that match a generic condition.
 
         Args:
@@ -225,6 +225,13 @@ class ECGDataset(ABC, Generic[TLabel]):
         # subsample the dataset from the randomly drawn indices
         return self._subsample_from_indices(partition)
 
+    def get_by_identifier(self, identifier_str: str) -> ECGEntry | None:
+        for entry in self:
+            if str(entry.identifier) == identifier_str:
+                return entry
+
+        return None
+
     def _subsample_from_indices(self, indices: list[int] | np.ndarray) -> ECGDataset:
         assert all(0 <= index < self.n for index in indices)
 
@@ -258,11 +265,11 @@ class ECGDataset(ABC, Generic[TLabel]):
 
         return self._copy_factory(identifiers, ecg_signals, qrs_complexes, labels)
 
-    def __iter__(self) -> Iterable[Entry[TLabel]]:
+    def __iter__(self) -> Iterable[ECGEntry[TLabel]]:
         data = zip(self.identifiers, self.ecg_signals, self.qrs_complexes, self.labels)
 
         for identifier, ecg, qrs, label in data:
-            yield Entry(identifier, ecg, qrs, label)
+            yield ECGEntry(identifier, ecg, qrs, label)
 
     def __repr__(self):
         return f"{type(self).__name__}({dict(self.count_labels())})"

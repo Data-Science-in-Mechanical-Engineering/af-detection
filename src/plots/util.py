@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Callable
 
 import seaborn as sns
 from pypdf import PdfMerger
+
+from src.results import Outcome
 
 VIBRANT_COLOR_LIGHT = "#f37651"
 VIBRANT_COLOR_DARK = "#701f57"
@@ -12,6 +15,7 @@ VIBRANT_COLOR_DARK = "#701f57"
 
 class Style:
     LABEL_FONT_SIZE = 7
+    LABEL_FONT_SIZE_LARGE = 9
     VIBRANT_COLOR_LIGHT = "#f37651"
     VIBRANT_COLOR_DARK = "#701f57"
     VIBRANT_COLOR_PALETTE = sns.blend_palette([VIBRANT_COLOR_LIGHT, VIBRANT_COLOR_DARK], as_cmap=True)
@@ -44,3 +48,6 @@ def merge_pdfs(root: Path, target_pdf_name: str = "merged"):
         root = folders.pop()
         folders.extend(Path(root / f) for f in os.listdir(root) if os.path.isdir(root / f))
         merge_pdfs_folder(root)
+
+
+Metric = Callable[[Outcome], float]

@@ -1,26 +1,30 @@
+import math
 from pathlib import Path
-from typing import Callable
+from typing import NamedTuple
 
+import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 
-from .util import Style
-from ..results import Snapshot, Result, RESULTS_FOLDER, Outcome
-
-Metric = Callable[[Outcome], float]
+from .util import Style, Metric
+from ..results import Snapshot, Result, RESULTS_FOLDER
 
 
-def plot_roc(
-    snapshot: Snapshot,
-    metric_x: Metric,
-    metric_y: Metric,
-    label_metric_x: str,
-    label_metric_y: str,
-    line_cs: set[float],
-    highlighted_cs: set[float],
-    path: Path | None = None
-):
+class ROCData(NamedTuple):
+    min_rho: float
+    max_rho: float
+    outcomes_by_c: dict[float, Snapshot]
+    highlighted: dict[str, list[float]]
+
+
+def get_roc_data(
+        snapshot: Snapshot,
+        line_cs: set[float],
+        highlighted_cs: set[float],
+        metric_x: Metric,
+        metric_y: Metric
+) -> ROCData:
     outcomes_by_c = snapshot.filter(lambda outcome: outcome.parametrization["c"] in line_cs) \
         .partition(lambda outcome: outcome.parametrization["c"])
 
@@ -31,7 +35,7 @@ def plot_roc(
     }
 
     highlighted_data = {"x": [], "y": [], "rho": []}
-    min_rho, max_rho = 0, 0
+    min_rho, max_rho = math.inf, -math.inf
 
     for c, outcomes in highlighted_outcomes_by_c.items():
         outcomes = list(outcomes_by_c[c])
@@ -44,32 +48,56 @@ def plot_roc(
 
         highlighted_data["rho"].extend(rhos)
 
-    for outcomes in outcomes_by_c.values():
+    return ROCData(min_rho, max_rho, outcomes_by_c, highlighted_data)
+
+
+def plot_roc_scatterplot(data: ROCData, metric_x: Metric, metric_y: Metric, **kwargs):
+    for outcomes in data.outcomes_by_c.values():
         xs = map(metric_x, outcomes)
         ys = map(metric_y, outcomes)
-        sns.lineplot(x=xs, y=ys, color="#c7ddf2", errorbar=None)
 
-    point_colors = Style.VIBRANT_COLOR_PALETTE
+        arguments = dict(x=xs, y=ys, color="#c7ddf2", errorbar=None) | kwargs
+        sns.lineplot(**arguments)
 
-    ax = sns.scatterplot(
-        data=highlighted_data,
+
+def plot_roc_lineplot(data: ROCData, **kwargs):
+    arguments = dict(
+        data=data.highlighted,
         x="x",
         y="y",
         hue="rho",
         legend=None,
         zorder=100,
         hue_norm=LogNorm(),
-        palette=point_colors
-    )
+        palette=Style.VIBRANT_COLOR_PALETTE
+    ) | kwargs
+
+    return sns.scatterplot(**arguments)
+
+
+def plot_roc(
+        snapshot: Snapshot,
+        metric_x: Metric,
+        metric_y: Metric,
+        label_metric_x: str,
+        label_metric_y: str,
+        line_cs: set[float],
+        highlighted_cs: set[float],
+        path: Path | None = None
+):
+    data = get_roc_data(snapshot, line_cs, highlighted_cs, metric_x, metric_y)
+    plot_roc_scatterplot(data, metric_x, metric_y)
+    ax = plot_roc_lineplot(data)
 
     plt.rcParams["pgf.texsystem"] = "pdflatex"
     plt.xlabel(label_metric_x, size=Style.LABEL_FONT_SIZE)
     plt.ylabel(label_metric_y, size=Style.LABEL_FONT_SIZE)
     plt.tick_params(labelsize=Style.LABEL_FONT_SIZE)
 
-    sm = plt.cm.ScalarMappable(cmap=point_colors, norm=plt.Normalize(min_rho, max_rho))
-    cb = ax.figure.colorbar(sm, ax=ax, label=r"Relative penalization $\rho$")
+    sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=LogNorm(vmin=data.min_rho, vmax=data.max_rho))
+    cb = ax.figure.colorbar(sm, ax=ax)
     cb.outline.set_visible(False)
+    cb.set_label(r"Relative penalization parameter $\rho$", size=Style.LABEL_FONT_SIZE)
     ax.figure.axes[-1].tick_params(labelsize=Style.LABEL_FONT_SIZE)
     ax.figure.axes[-1].yaxis.label.set_size(Style.LABEL_FONT_SIZE)
 
@@ -99,5 +127,5 @@ if __name__ == "__main__":
         "True Positive Rate (Sensitivity)",
         LINE_CS,
         CS,
-        RESULTS_FOLDER / "roc-sph.pdf"
+        # RESULTS_FOLDER / "roc-sph.pdf"
     )
