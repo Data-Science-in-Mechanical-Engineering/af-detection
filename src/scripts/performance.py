@@ -19,9 +19,18 @@ def main_performance_experiment_rri(arguments: Namespace):
         af_labels_train = {setup.training.AFIB}
         af_labels_validate = {setup.validating.AFIB}
 
+        if arguments.imbalanced:
+            ds_train = setup.training
+            ds_validate = setup.validating
+        else:
+            n_afib_train = setup.training.count(*af_labels_train)
+            n_afib_validate = setup.validating.count(*af_labels_validate)
+            ds_train = setup.training.balanced_binary_partition(af_labels_train, n_afib_train),
+            ds_validate = setup.validating.balanced_binary_partition(af_labels_validate, n_afib_validate)
+
         experiment(
-            setup.training.balanced_binary_partition(af_labels_train, setup.training.count(*af_labels_train)),
-            setup.validating.balanced_binary_partition(af_labels_validate, setup.validating.count(*af_labels_validate)),
+            ds_train,
+            ds_validate,
             af_labels_train,
             af_labels_validate
         )
@@ -36,6 +45,9 @@ if __name__ == "__main__":
     args_add_classifier(parser)
     args_add_bandwidth_rri(parser)
     args_add_setup(parser, "cross")
+
+    parser.add_argument("--imbalanced", dest="imbalanced", default=False, action="store_true",
+                        help="Whether or not to train and evaluate on the full datasets.")
 
     args = parser.parse_args()
     main_performance_experiment_rri(args)
