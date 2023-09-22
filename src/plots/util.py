@@ -9,16 +9,18 @@ from pypdf import PdfMerger
 
 from src.results import Outcome
 
-VIBRANT_COLOR_LIGHT = "#f37651"
-VIBRANT_COLOR_DARK = "#701f57"
+VIBRANT_COLOR_LIGHT = "#79bee6"
+VIBRANT_COLOR_DARK = "#00549f"
 
 
 class Style:
     LABEL_FONT_SIZE = 7
     LABEL_FONT_SIZE_LARGE = 9
-    VIBRANT_COLOR_LIGHT = "#f37651"
-    VIBRANT_COLOR_DARK = "#701f57"
+    VIBRANT_COLOR_LIGHT = VIBRANT_COLOR_LIGHT
+    VIBRANT_COLOR_DARK = VIBRANT_COLOR_DARK
     VIBRANT_COLOR_PALETTE = sns.blend_palette([VIBRANT_COLOR_LIGHT, VIBRANT_COLOR_DARK], as_cmap=True)
+    GREEN_COLOR = "#8dc060"
+    RED_COLOR = "#d80032"
 
     @staticmethod
     def vibrant_colors_discrete(n_colors: int):

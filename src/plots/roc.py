@@ -5,7 +5,7 @@ from typing import NamedTuple
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 
 from .util import Style, Metric
 from ..results import Snapshot, Result, RESULTS_FOLDER
@@ -94,7 +94,7 @@ def plot_roc(
     plt.ylabel(label_metric_y, size=Style.LABEL_FONT_SIZE)
     plt.tick_params(labelsize=Style.LABEL_FONT_SIZE)
 
-    sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=LogNorm(vmin=data.min_rho, vmax=data.max_rho))
+    sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=Normalize(vmin=data.min_rho, vmax=data.max_rho))
     cb = ax.figure.colorbar(sm, ax=ax)
     cb.outline.set_visible(False)
     cb.set_label(r"Relative penalization parameter $\rho$", size=Style.LABEL_FONT_SIZE)
@@ -120,12 +120,12 @@ if __name__ == "__main__":
     CS = {10.531052631578946}
 
     plot_roc(
-        SPH_RESULT.snapshots[0],
+        COAT_RESULT.snapshots[0],
         lambda outcome: 1 - outcome.specificity,
         lambda outcome: outcome.recall,
         "False Positive Rate (1 - Specificity)",
         "True Positive Rate (Sensitivity)",
         LINE_CS,
         CS,
-        # RESULTS_FOLDER / "roc-sph.pdf"
+        RESULTS_FOLDER / "roc-coat.pdf"
     )

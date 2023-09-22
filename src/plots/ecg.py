@@ -7,11 +7,12 @@ import numpy as np
 import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LogNorm
+from matplotlib.patches import Circle, Rectangle
 
+from src.data.qrs import XQRSPeakDetectionAlgorithm
 from .util import Style, merge_pdfs
-from ..data.dataset import ECGDataset, SPHDataset, COATDataset
+from ..data.dataset import ECGDataset, SPHDataset
 from ..results import Result, Snapshot, RESULTS_FOLDER
-from ..scripts.util import STANDARD_SPH_MINIMUM_RRIS
 
 DEFAULT_LINE_WIDTH = 2
 
@@ -55,6 +56,7 @@ def plot_ecg(
         size: tuple[float, float] | None = None,
         line_width: int = DEFAULT_LINE_WIDTH,
         decision_distance: float | None = None,
+        plain: bool = False,
         title: str | None = None,
         path: Path | None = None
 ):
@@ -63,18 +65,17 @@ def plot_ecg(
     if size is not None:
         plt.figure(figsize=size)
 
-    ax = sns.lineplot(x=info.time_seconds, y=ecg_signal)
+    ax = sns.lineplot(x=info.time_seconds, y=info.ecg_signal)
     x, y = ax.get_lines()[0].get_data()
     segments = np.array([x[:-1], y[:-1], x[1:], y[1:]]).T.reshape(-1, 2, 2)
 
-    peak_distance = np.abs(qrs_complexes[:, None] - info.time_indices[None, :]).min(axis=0) + 1
+    peak_distance = np.abs(info.qrs_complexes[:, None] - info.time_indices[None, :]).min(axis=0) + 1
     cmap = Style.VIBRANT_COLOR_PALETTE.reversed()
     norm = LogNorm(peak_distance.min(), peak_distance.max())
 
     lc = LineCollection(segments, cmap=cmap, norm=norm)
     lc.set_array(peak_distance[:-1])
     lc.set_linewidth(line_width)
-    ax.get_lines()[0].remove()
     ax.add_collection(lc)
 
     ax.spines["top"].set_visible(False)
@@ -83,14 +84,18 @@ def plot_ecg(
 
     plt.tick_params(labelsize=Style.LABEL_FONT_SIZE)
     plt.yticks([])
-    plt.xlabel("Time (in seconds)", size=Style.LABEL_FONT_SIZE)
+
+    if plain:
+        plt.axis("off")
+    else:
+        plt.xlabel("Time (in seconds)", size=Style.LABEL_FONT_SIZE)
 
     if mark_peaks:
         marker_size = line_width / DEFAULT_LINE_WIDTH
 
         sns.scatterplot(
             x=info.qrs_complexes_seconds,
-            y=np.zeros_like(info.qrs_complexes_seconds) - 10 * marker_size,
+            y=np.zeros_like(info.qrs_complexes_seconds) - 75 * marker_size,
             color=Style.VIBRANT_COLOR_DARK,
             marker="^",
             s=100 * marker_size
@@ -106,7 +111,90 @@ def plot_ecg(
     if path is None:
         plt.show()
     else:
-        plt.savefig(path, dpi=300)
+        plt.savefig(path, dpi=300, bbox_inches="tight")
+
+    plt.close()
+
+
+def plot_plain_ecg(
+        ecg_signal: np.ndarray,
+        qrs_complexes: np.ndarray,
+        color: str,
+        n_peaks: int | None = None,
+        first_peak_offset: int = 100,
+        mark_rris: set[int] | None = None,
+        mark_p_waves: set[int] | None = None,
+        plain: bool = False,
+        size: tuple[float, float] | None = None,
+        path: Path | None = None,
+):
+    mark_rris = set() if mark_rris is None else mark_rris
+    mark_p_waves = set() if mark_p_waves is None else mark_p_waves
+    info = extract_ecg_information(ecg_signal, first_peak_offset, 1, n_peaks, qrs_complexes)
+
+    if size is not None:
+        plt.figure(figsize=size)
+
+    ax = sns.lineplot(x=info.time_indices, y=info.ecg_signal, color=color, linewidth=2)
+
+    for qrs_index in mark_p_waves:
+        time_index = int(info.qrs_complexes_seconds[qrs_index] - 60)
+        time_ecg_signal = int(info.ecg_signal[int(time_index - info.time_indices[0])])
+
+        ax.add_patch(Circle(
+            xy=(time_index, time_ecg_signal),
+            radius=100,
+            color=Style.RED_COLOR,
+            fill=False,
+            linewidth=2,
+            zorder=100
+        ))
+
+    y_connection_patch = 0.75 * float(info.ecg_signal.max())
+
+    for qrs_index in mark_rris:
+        time_index = int(info.qrs_complexes_seconds[qrs_index] + 40)
+        next_time_index = int(info.qrs_complexes_seconds[qrs_index + 1] - 40)
+
+        ax.add_patch(Rectangle(
+            xy=(time_index, y_connection_patch),
+            width=next_time_index - time_index,
+            height=20,
+            color=Style.RED_COLOR,
+            zorder=100
+        ))
+
+        ax.add_patch(Rectangle(
+            xy=(time_index, y_connection_patch - 20),
+            width=5,
+            height=60,
+            color=Style.RED_COLOR,
+            zorder=100
+        ))
+
+        ax.add_patch(Rectangle(
+            xy=(next_time_index - 5, y_connection_patch - 20),
+            width=5,
+            height=60,
+            color=Style.RED_COLOR,
+            zorder=100
+        ))
+
+    label_color = "white" if plain else "black"
+    plt.xlabel("Time", size=Style.LABEL_FONT_SIZE, color=label_color)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi=300, bbox_inches="tight")
 
     plt.close()
 
@@ -186,8 +274,23 @@ if __name__ == "__main__":
     # stereotypical examples:
     # SPH: AF: MUSE_20180113_073230_90000
     # SPH: noAF: MUSE_20180210_120332_11000
+    # SPH: False Positive due to faulty peak extraction: MUSE_20180113_122732_19000
+    # COAT: Dataset Example AF: DEV52-PAT53
+    # SPH: Dataset Example AF: MUSE_20180113_132000_94000
 
-    SPH = SPHDataset.load_train() | SPHDataset.load_validate() | SPHDataset.load_test()
-    COAT = COATDataset.load_train() | COATDataset.load_validate() | COATDataset.load_test()
+    ALGORITHM = XQRSPeakDetectionAlgorithm()  # Christov2004()
+    SPH = SPHDataset.load_train(qrs_algorithm=ALGORITHM) | SPHDataset.load_validate(
+        qrs_algorithm=ALGORITHM) | SPHDataset.load_test(qrs_algorithm=ALGORITHM)
+    # COAT = COATDataset.load_train() | COATDataset.load_validate() | COATDataset.load_test()
 
-    plot_sampled_ecgs(SPH, {SPH.SR: 40}, STANDARD_SPH_MINIMUM_RRIS + 1, RESULTS_FOLDER / "tmp_noAF")
+    example = SPH.get_by_identifier("MUSE_20180113_122732_19000")
+
+    plot_ecg(
+        example.ecg_signal,
+        example.qrs_complexes,
+        SPH.FREQUENCY,
+        first_peak_offset=250,
+        size=(11, 2),
+        plain=True,
+        path=RESULTS_FOLDER / "example-false-positive-peak-extraction-xqrs.pdf"
+    )

@@ -5,6 +5,7 @@ from typing import Callable, NamedTuple
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
 
 from .util import Style
 from ..results import Outcome, Result, RESULTS_FOLDER
@@ -57,6 +58,15 @@ def get_confusion_matrix(outcome: Outcome, label_mapping: Callable[[str], str]) 
 
 
 def plot_confusion_heatmap(data: ConfusionData, **kwargs):
+    annot_kws = dict(
+        size=Style.LABEL_FONT_SIZE,
+        color="white",
+        fontweight="bold"
+    )
+
+    if "annot_kws" in kwargs:
+        annot_kws |= kwargs["annot_kws"]
+
     arguments = dict(
         data=data.row_normalized_confusion_matrix,
         annot=data.annotations,
@@ -64,10 +74,13 @@ def plot_confusion_heatmap(data: ConfusionData, **kwargs):
         yticklabels=data.y_labels,
         fmt="",
         cmap=Style.VIBRANT_COLOR_PALETTE.reversed(),
-        annot_kws={"size": Style.LABEL_FONT_SIZE},
-    ) | kwargs
+    ) | kwargs | dict(annot_kws=annot_kws)
 
-    return sns.heatmap(**arguments)
+    ax = sns.heatmap(**arguments)
+    ax.add_patch(Rectangle((0, 0), 1, 1, fill=False, edgecolor=Style.GREEN_COLOR, lw=3, clip_on=False))
+    ax.add_patch(Rectangle((1, 1), 1, 8, fill=False, edgecolor=Style.GREEN_COLOR, lw=3, clip_on=False))
+
+    return ax
 
 
 def plot_confusion(outcome: Outcome, label_mapping: Callable[[str], str], path: Path | None = None):

@@ -1,3 +1,4 @@
+import math
 from pathlib import Path
 from typing import Callable
 
@@ -6,7 +7,9 @@ import matplotlib.ticker as tkr
 import numpy as np
 import seaborn as sns
 from matplotlib.colors import Normalize
+from matplotlib.patches import FancyArrowPatch
 
+from src.method.features import extract_normalized_rri
 from .confusion import get_confusion_data, plot_confusion_heatmap
 from .dataset_size import get_logsize_data, plot_logsize_boxplot
 from .ecg import extract_ecg_information
@@ -14,6 +17,9 @@ from .roc import get_roc_data, plot_roc_scatterplot, plot_roc_lineplot
 from .util import Style, Metric
 from ..data.dataset import ECGEntry, SPHDataset
 from ..results import Outcome, RESULTS_FOLDER, Result, Snapshot
+
+DISTRIBUTION_COLORS = ["#d62728", "#9467bd"]
+SAMPLE_COLORS = ["#ff7f0e", "#e377c2"]
 
 
 def plot_result_composition(
@@ -216,5 +222,207 @@ def main_plot_ecg_examples(path: Path | None = None):
     )
 
 
+def plot_kme_sketch(
+        entry_afib: ECGEntry,
+        entry_healthy: ECGEntry,
+        n_peaks: int,
+        size: tuple[float, float] | None = None,
+        path: Path | None = None
+):
+    ecg_info_healthy = extract_ecg_information(entry_healthy.ecg_signal, 250, 1, n_peaks, entry_healthy.qrs_complexes)
+    ecg_info_afib = extract_ecg_information(entry_afib.ecg_signal, 250, 1, n_peaks, entry_afib.qrs_complexes)
+
+    if size is not None:
+        plt.figure(figsize=size)
+
+    figure = plt.figure(figsize=size)
+    grid = figure.add_gridspec(2, 3, width_ratios=[1, 1, 1], wspace=0.4, hspace=0.2)
+
+    ax_healthy = figure.add_subplot(grid[0, 0])
+    ax_afib = figure.add_subplot(grid[1, 0])
+    ax_kde_healthy = figure.add_subplot(grid[0, 1])
+    ax_kde_afib = figure.add_subplot(grid[1, 1], sharex=ax_kde_healthy, sharey=ax_kde_healthy)
+    ax_kme = figure.add_subplot(grid[:, 2])
+
+    sns.lineplot(
+        x=ecg_info_healthy.time_indices,
+        y=ecg_info_healthy.ecg_signal,
+        linewidth=2,
+        color=Style.VIBRANT_COLOR_LIGHT,
+        ax=ax_healthy,
+    )
+
+    sns.lineplot(
+        x=ecg_info_afib.time_indices,
+        y=ecg_info_afib.ecg_signal,
+        linewidth=2,
+        color=Style.VIBRANT_COLOR_DARK,
+        ax=ax_afib,
+    )
+
+    for ax in [ax_healthy, ax_afib]:
+        ax.set_xlabel("Time", size=Style.LABEL_FONT_SIZE_LARGE)
+
+    rris = extract_normalized_rri([entry_healthy.qrs_complexes, entry_afib.qrs_complexes])
+    kme_plot_data = zip([ax_kde_healthy, ax_kde_afib], DISTRIBUTION_COLORS, SAMPLE_COLORS, rris)
+
+    for ax, color, color_scatter, rri in kme_plot_data:
+        sns.kdeplot(
+            data=rri,
+            legend=False,
+            color=color,
+            linewidth=2,
+            ax=ax
+        )
+
+        x = ax.lines[0].get_xdata()
+        y = ax.lines[0].get_ydata()
+        ax.fill_between(x, y, color=color, alpha=0.3)
+
+        sns.scatterplot(
+            x=rri,
+            y=[-1] * rri.size,
+            color=color_scatter,
+            legend=False,
+            marker="x",
+            s=100,
+            ax=ax
+        )
+
+        ax.set_ylim(bottom=-2)
+        ax.set_xlabel("RRI", size=Style.LABEL_FONT_SIZE_LARGE)
+
+    for ax_left, ax_right in zip([ax_healthy, ax_afib], [ax_kde_healthy, ax_kde_afib]):
+        ax_left_bounds = ax_left.get_position()
+        y_center = ax_left_bounds.y0 + (ax_left_bounds.y1 - ax_left_bounds.y0) / 2
+        ax_left_east = (ax_left_bounds.x1, y_center)
+
+        ax_right_bounds = ax_right.get_position()
+        ax_right_west = (ax_right_bounds.x0, y_center)
+
+        arrow = FancyArrowPatch(
+            ax_left_east,
+            ax_right_west,
+            shrinkB=0,
+            transform=figure.transFigure,
+            arrowstyle="->",
+            mutation_scale=20,
+            color=Style.GREEN_COLOR,
+            linewidth=2
+        )
+
+        figure.patches.append(arrow)
+        plt.annotate("distribution", xy=(0.5, 2), xycoords=arrow, horizontalalignment="center")
+
+    vector_healthy = np.array([0, 0, 3, 2])
+    vector_afib = np.array([0, 0, 6, -2])
+    vector_healthy = vector_healthy / np.linalg.norm(vector_healthy)
+    vector_afib = vector_afib / np.linalg.norm(vector_afib)
+
+    x, y, u, v = zip(vector_healthy, vector_afib)
+
+    ax_kme.quiver(
+        x, y, u, v,
+        angles="xy",
+        scale_units="xy",
+        scale=1,
+        headwidth=3,
+        headlength=5,
+        width=0.015,
+        color=DISTRIBUTION_COLORS
+    )
+
+    ax_kme.set_xlim([-0.5, 1.5])
+    ax_kme.set_ylim([-0.75, 1])
+
+    for rri, center, color in zip(rris, [vector_healthy, vector_afib], SAMPLE_COLORS):
+        thetas = rri - rri.mean()
+        thetas = thetas / np.abs(thetas).max() * math.pi / 8
+
+        for rri_value, theta in zip(rri, thetas):
+            rotation = np.array([
+                [math.cos(theta), -math.sin(theta)],
+                [math.sin(theta), math.cos(theta)]
+            ])
+
+            vector = np.dot(rotation, center[-2:])
+            vector = vector / np.linalg.norm(vector)
+
+            sns.scatterplot(
+                x=[vector[0]], y=[vector[1]],
+                color=color,
+                marker="x",
+                s=100,
+                ax=ax_kme
+            )
+
+            ax_kme.quiver(
+                [0], [0], [vector[0]], [vector[1]],
+                angles="xy",
+                scale_units="xy",
+                scale=1,
+                headwidth=3,
+                headlength=5,
+                width=0.015,
+                color=color,
+                alpha=0.15
+            )
+
+    ax_kme.set_xlabel("Reproducing Kernel Hilbert Space", size=Style.LABEL_FONT_SIZE_LARGE)
+
+    for ax_left in [ax_kde_healthy, ax_kde_afib]:
+        ax_left_bounds = ax_left.get_position()
+        y_center = ax_left_bounds.y0 + (ax_left_bounds.y1 - ax_left_bounds.y0) / 2
+        ax_left_east = (ax_left_bounds.x1, y_center)
+
+        ax_right_bounds = ax_kme.get_position()
+        ax_right_west = (ax_right_bounds.x0, y_center)
+
+        arrow = FancyArrowPatch(
+            ax_left_east,
+            ax_right_west,
+            shrinkB=0,
+            transform=figure.transFigure,
+            arrowstyle="->",
+            mutation_scale=20,
+            color=Style.GREEN_COLOR,
+            linewidth=2
+        )
+
+        figure.patches.append(arrow)
+        plt.annotate("KME", xy=(0.5, 2), xycoords=arrow, horizontalalignment="center")
+
+    for ax in [ax_healthy, ax_afib, ax_kde_healthy, ax_kde_afib, ax_kme]:
+        ax.set_ylabel("")
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi=300, bbox_inches="tight")
+
+    plt.clf()
+
+
+def main_plot_kme_sketch(path: Path | None = None):
+    sph_dataset = SPHDataset.load_train() | SPHDataset.load_test() | SPHDataset.load_validate()
+    entry_afib = sph_dataset.get_by_identifier("MUSE_20180113_073230_90000")
+    entry_no_afib = sph_dataset.get_by_identifier("MUSE_20180210_120332_11000")
+
+    plot_kme_sketch(
+        entry_afib,
+        entry_no_afib,
+        n_peaks=8,
+        size=(11, 4),
+        path=path
+    )
+
+
 if __name__ == "__main__":
-    main_plot_results()
+    main_plot_kme_sketch(RESULTS_FOLDER / "kme-sketch.pdf")
