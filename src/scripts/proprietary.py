@@ -35,7 +35,9 @@ def main_proprietary_performance(arguments: Namespace):
     predictions = parse_proprietary_predictions(arguments.file)
 
     dataset = COATSetup.standard_preprocessing(COATDataset.load_test())
-    dataset = dataset.balanced_binary_partition({dataset.AFIB}, dataset.count(dataset.AFIB))
+
+    if not arguments.imbalanced:
+        dataset = dataset.balanced_binary_partition({dataset.AFIB}, dataset.count(dataset.AFIB))
 
     labels_binary = make_binary_labels(dataset.labels, {dataset.AFIB})
 
@@ -57,6 +59,9 @@ def main_proprietary_performance(arguments: Namespace):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-f", dest="file", type=Path, required=True, help="XLSX file with MyDiagnoStick predictions.")
+
+    parser.add_argument("--imbalanced", dest="imbalanced", default=False, action="store_true",
+                        help="Whether or not to train and evaluate on the full datasets.")
 
     args = parser.parse_args()
     main_proprietary_performance(args)

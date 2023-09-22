@@ -14,8 +14,6 @@ def main_performance_experiment_rri(arguments: Namespace):
     experiment = ExperimentRRI(cs, [1], classifier, bandwidths_rri)
 
     for setup in setups:
-        print("\n", f"Training: {setup.training}", "\n", f"Validation: {setup.validating}", "\n")
-
         af_labels_train = {setup.training.AFIB}
         af_labels_validate = {setup.validating.AFIB}
 
@@ -27,6 +25,8 @@ def main_performance_experiment_rri(arguments: Namespace):
             n_afib_validate = setup.validating.count(*af_labels_validate)
             ds_train = setup.training.balanced_binary_partition(af_labels_train, n_afib_train),
             ds_validate = setup.validating.balanced_binary_partition(af_labels_validate, n_afib_validate)
+
+        print("\n", f"Training: {ds_train}", "\n", f"Validation: {ds_validate}", "\n")
 
         experiment(
             ds_train,
