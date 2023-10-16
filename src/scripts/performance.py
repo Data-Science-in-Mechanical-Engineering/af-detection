@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--imbalanced_training", dest="imbalanced_training", 
                         default=False, action="store_true",
                         help="Whether or not to train on the full dataset.")
-    parser.add_argument("--imbalanced_validating", dest="imbalanced_training", 
+    parser.add_argument("--imbalanced_validating", dest="imbalanced_validating", 
                         default=False, action="store_true",
                         help="Whether or not to validate on the full dataset.")
 
