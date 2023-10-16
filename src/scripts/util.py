@@ -174,6 +174,10 @@ def args_add_bandwidth_rri(parser: ArgumentParser):
                        help="Linear end value for RRI bandwidth parameter.")
     group.add_argument("--bandwidth_rri_steps", dest="bandwidth_rri_steps", type=int, default=1,
                        help="Number of steps for RRI bandwidth parameter.")
+    group.add_argument("--bandwidth_rri_logspace", dest="bandwidth_rri_logspace", default=False,
+                       action="store_true", help="Whether or not use a logspace for grid search.")
+    group.add_argument("--bandwidth_rri_base", dest="bandwidth_rri_base", type=float, default=10.0,
+                       help="If using a logspace, base of the log. Ignored otherwise.")
 
 
 def args_add_rho(parser: ArgumentParser):
@@ -220,7 +224,15 @@ def args_parse_classifier(arguments: Namespace):
 
 
 def args_parse_bandwidth_rri(arguments: Namespace):
-    return np.linspace(arguments.bandwidth_rri_lower, arguments.bandwidth_rri_upper, arguments.bandwidth_rri_steps)
+    if arguments.bandwidth_rri_logspace:
+        space = np.logspace
+        kwargs = {"base": arguments.bandwidth_rri_base}
+    else:
+        space = np.linspace
+        kwargs = {}
+    return space(
+        arguments.bandwidth_rri_lower, arguments.bandwidth_rri_upper, arguments.bandwidth_rri_steps, **kwargs
+    )
 
 
 def args_parse_rho(arguments: Namespace):
