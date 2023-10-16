@@ -1,8 +1,8 @@
 from argparse import Namespace, ArgumentParser
 
-from .util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, \
+from src.scripts.util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, \
     args_add_c, args_add_classifier, args_add_bandwidth_rri, args_add_setup, finish_experiment
-from ..experiments import ExperimentRRI
+from src.experiments import ExperimentRRI
 
 
 def main_performance_experiment_rri(arguments: Namespace):
@@ -17,13 +17,15 @@ def main_performance_experiment_rri(arguments: Namespace):
         af_labels_train = {setup.training.AFIB}
         af_labels_validate = {setup.validating.AFIB}
 
-        if arguments.imbalanced:
+        if arguments.imbalanced_training:
             ds_train = setup.training
-            ds_validate = setup.validating
         else:
             n_afib_train = setup.training.count(*af_labels_train)
+            ds_train = setup.training.balanced_binary_partition(af_labels_train, n_afib_train)
+        if arguments.imbalanced_validating:
+            ds_validate = setup.validating
+        else:
             n_afib_validate = setup.validating.count(*af_labels_validate)
-            ds_train = setup.training.balanced_binary_partition(af_labels_train, n_afib_train),
             ds_validate = setup.validating.balanced_binary_partition(af_labels_validate, n_afib_validate)
 
         print("\n", f"Training: {ds_train}", "\n", f"Validation: {ds_validate}", "\n")
@@ -46,8 +48,12 @@ if __name__ == "__main__":
     args_add_bandwidth_rri(parser)
     args_add_setup(parser, "cross")
 
-    parser.add_argument("--imbalanced", dest="imbalanced", default=False, action="store_true",
-                        help="Whether or not to train and evaluate on the full datasets.")
+    parser.add_argument("--imbalanced_training", dest="imbalanced_training", 
+                        default=False, action="store_true",
+                        help="Whether or not to train on the full dataset.")
+    parser.add_argument("--imbalanced_validating", dest="imbalanced_training", 
+                        default=False, action="store_true",
+                        help="Whether or not to validate on the full dataset.")
 
     args = parser.parse_args()
     main_performance_experiment_rri(args)
