@@ -1,7 +1,8 @@
 from argparse import Namespace, ArgumentParser
 
 from src.scripts.util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, \
-    args_add_c, args_add_classifier, args_add_bandwidth_rri, args_add_setup, finish_experiment
+    args_add_c, args_add_rho, args_add_classifier, \
+    args_add_bandwidth_rri, args_add_setup, finish_experiment
 from src.experiments import ExperimentRRI
 
 
@@ -44,6 +45,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     args_add_c(parser)
+    args_add_rho(parser)
     args_add_classifier(parser)
     args_add_bandwidth_rri(parser)
     args_add_setup(parser, "cross")
