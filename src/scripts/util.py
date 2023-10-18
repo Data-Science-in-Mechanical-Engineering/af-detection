@@ -189,7 +189,7 @@ def args_add_rho(parser: ArgumentParser):
     group.add_argument("--rho_upper", dest="rho_upper", type=float, default=1,
                        help="Log end value for the class weight proportion parameter.")
 
-    group.add_argument("--rho_steps", dest="rho_steps", type=float, default=20,
+    group.add_argument("--rho_steps", dest="rho_steps", type=int, default=20,
                        help="Number of steps for the class weight proportion parameter.")
 
     group.add_argument("--rho_base", dest="rho_base", type=float, default=5,
