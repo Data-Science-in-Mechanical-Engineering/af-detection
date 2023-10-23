@@ -5,10 +5,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..data.dataset import COATDataset, COATIdentifier, Identifier
-from ..experiments import make_binary_labels
-from ..results import Outcome, Result, Snapshot
-from ..scripts.util import COATSetup, finish_experiment
+from src.data.dataset import COATDataset, COATIdentifier, Identifier
+from src.experiments import make_binary_labels
+from src.results import Outcome, Result, Snapshot
+from src.scripts.util import COATSetup, finish_experiment
 
 
 def parse_proprietary_predictions(xlsx_file: Path) -> dict[Identifier, int]:
