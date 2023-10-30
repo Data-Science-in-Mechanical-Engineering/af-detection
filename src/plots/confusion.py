@@ -7,8 +7,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
-from .util import Style
-from ..results import Outcome, Result, RESULTS_FOLDER
+from src.plots.util import Style
+from src.results import Outcome, Result, RESULTS_FOLDER
 
 
 class ConfusionData(NamedTuple):
@@ -78,7 +78,7 @@ def plot_confusion_heatmap(data: ConfusionData, **kwargs):
 
     ax = sns.heatmap(**arguments)
     ax.add_patch(Rectangle((0, 0), 1, 1, fill=False, edgecolor=Style.GREEN_COLOR, lw=3, clip_on=False))
-    ax.add_patch(Rectangle((1, 1), 1, 8, fill=False, edgecolor=Style.GREEN_COLOR, lw=3, clip_on=False))
+    ax.add_patch(Rectangle((1, 1), 1, 10, fill=False, edgecolor=Style.GREEN_COLOR, lw=3, clip_on=False))
 
     return ax
 
@@ -102,7 +102,7 @@ def plot_confusion(outcome: Outcome, label_mapping: Callable[[str], str], path: 
 
 
 if __name__ == "__main__":
-    results_sph_validate = Result.from_json(RESULTS_FOLDER / "svm rri/test-performance-cross-database.json") \
+    results_sph_validate = Result.from_json(RESULTS_FOLDER / "svm rri/validation_imbalanced.json") \
         .filter(lambda snapshot: snapshot.setup["dataset_validate"]["name"] == "SPHDataset") \
         .partition(lambda snapshot: snapshot.setup["dataset_train"]["name"])
 

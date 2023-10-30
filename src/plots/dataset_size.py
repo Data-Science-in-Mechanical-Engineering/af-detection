@@ -7,8 +7,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.patches import PathPatch
 
-from .util import Style
-from ..results import Result, Outcome, RESULTS_FOLDER
+from src.plots.util import Style
+from src.results import Result, Outcome, RESULTS_FOLDER
 
 
 def get_logsize_data(
@@ -103,7 +103,7 @@ def plot_dataset_logsize_experiment(
 
 
 if __name__ == "__main__":
-    RESULT = Result.from_json(RESULTS_FOLDER / "svm rri/test-logsize-cross-database.json") \
+    RESULT = Result.from_json(RESULTS_FOLDER / "svm rri/dataset_size_imbalanced.json") \
         .filter(lambda snapshot: snapshot.setup["dataset_train"]["name"] == snapshot.setup["dataset_validate"]["name"])
 
     LABELS = {
@@ -113,9 +113,9 @@ if __name__ == "__main__":
 
     plot_dataset_logsize_experiment(
         RESULT,
-        lambda outcome: outcome.accuracy,
-        "Accuracy",
+        lambda outcome: outcome.f1,
+        "f1",
         lambda a, b: LABELS[a, b],
         common_sizes_only=True,
-        path=RESULTS_FOLDER / "accuracy-data-size.pdf"
+        path=RESULTS_FOLDER / "f1-data-size.pdf"
     )
