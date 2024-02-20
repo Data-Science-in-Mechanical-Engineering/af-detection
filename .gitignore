@@ -1,6 +1,7 @@
 # Data
 data/coat/*/
 data/sph/*/
+data/*/*.zip
 
 # Results
 results/
