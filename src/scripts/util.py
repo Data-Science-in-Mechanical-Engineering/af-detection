@@ -9,6 +9,8 @@ from typing import Generic, TypeVar, Iterator
 import numpy as np
 
 from ..data.dataset import SPHDataset, COATDataset
+from ..data.qrs import PeakDetectionAlgorithm, XQRSPeakDetectionAlgorithm, \
+    CorrectedXQRSPeakDetectionAlgorithm
 from ..method.svm_classifier import SVMKMEClassifier, SVMMeanKernelClassifier, SVMVarianceClassifier, \
     SVMFeatureVectorClassifier
 from ..results import Result
@@ -33,17 +35,17 @@ class Setup(Generic[DatasetTrainingT, DatasetValidatingT]):
 
     @staticmethod
     @abstractmethod
-    def _load_standard_training() -> DatasetT:
+    def _load_standard_training(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
         raise NotImplementedError
 
     @staticmethod
     @abstractmethod
-    def _load_standard_validate() -> DatasetT:
+    def _load_standard_validate(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
         raise NotImplementedError
 
     @staticmethod
     @abstractmethod
-    def _load_standard_test() -> DatasetT:
+    def _load_standard_test(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
         raise NotImplementedError
 
     @classmethod
@@ -54,32 +56,36 @@ class Setup(Generic[DatasetTrainingT, DatasetValidatingT]):
         )
 
     @classmethod
-    def standard_validate(cls) -> Setup:
+    def standard_validate(cls, qrs_algorithm: PeakDetectionAlgorithm | None = None) -> Setup:
         return cls.from_standard_preprocessing(
-            cls._load_standard_training(),
-            cls._load_standard_validate()
+            cls._load_standard_training(qrs_algorithm),
+            cls._load_standard_validate(qrs_algorithm)
         )
 
     @classmethod
-    def standard_test(cls) -> Setup:
+    def standard_test(cls, qrs_algorithm: PeakDetectionAlgorithm | None = None) -> Setup:
         return cls.from_standard_preprocessing(
-            cls._load_standard_training(),
-            cls._load_standard_test()
+            cls._load_standard_training(qrs_algorithm),
+            cls._load_standard_test(qrs_algorithm)
         )
 
 
 class SPHSetup(Setup[SPHDataset, SPHDataset]):
     @staticmethod
-    def _load_standard_training() -> DatasetT:
-        return SPHDataset.load_train()
+    def _load_standard_training(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        # Little hack to pass no arguments if qrs_algorithm is None and avoid cumbersome ifs
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return SPHDataset.load_train(**not_None_kwargs)
 
     @staticmethod
-    def _load_standard_validate() -> DatasetT:
-        return SPHDataset.load_validate()
+    def _load_standard_validate(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return SPHDataset.load_validate(**not_None_kwargs)
 
     @staticmethod
-    def _load_standard_test() -> DatasetT:
-        return SPHDataset.load_test()
+    def _load_standard_test(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return SPHDataset.load_test(**not_None_kwargs)
 
     @staticmethod
     def standard_preprocessing(dataset: SPHDataset) -> SPHDataset:
@@ -88,16 +94,20 @@ class SPHSetup(Setup[SPHDataset, SPHDataset]):
 
 class COATSetup(Setup[COATDataset, COATDataset]):
     @staticmethod
-    def _load_standard_training() -> DatasetT:
-        return COATDataset.load_train()
+    def _load_standard_training(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        # Little hack to pass no arguments if qrs_algorithm is None and avoid cumbersome ifs
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return COATDataset.load_train(**not_None_kwargs)
 
     @staticmethod
-    def _load_standard_validate() -> DatasetT:
-        return COATDataset.load_validate()
+    def _load_standard_validate(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return COATDataset.load_validate(**not_None_kwargs)
 
     @staticmethod
-    def _load_standard_test() -> DatasetT:
-        return COATDataset.load_test()
+    def _load_standard_test(qrs_algorithm: PeakDetectionAlgorithm | None = None) -> DatasetT:
+        not_None_kwargs = {k:v for k,v in [('qrs_algorithm', qrs_algorithm)] if v is not None}
+        return COATDataset.load_test(**not_None_kwargs)
 
     @staticmethod
     def standard_preprocessing(dataset: COATDataset) -> COATDataset:
@@ -111,17 +121,17 @@ class MultiDatabaseSetup:
     coat: COATSetup
 
     @classmethod
-    def standard_validate(cls) -> MultiDatabaseSetup:
+    def standard_validate(cls, qrs_algorithm: PeakDetectionAlgorithm | None = None) -> MultiDatabaseSetup:
         return cls(
-            SPHSetup.standard_validate(),
-            COATSetup.standard_validate()
+            SPHSetup.standard_validate(qrs_algorithm),
+            COATSetup.standard_validate(qrs_algorithm)
         )
 
     @classmethod
-    def standard_test(cls) -> MultiDatabaseSetup:
+    def standard_test(cls, qrs_algorithm: PeakDetectionAlgorithm | None = None) -> MultiDatabaseSetup:
         return cls(
-            SPHSetup.standard_test(),
-            COATSetup.standard_test()
+            SPHSetup.standard_test(qrs_algorithm),
+            COATSetup.standard_test(qrs_algorithm)
         )
 
     @abstractmethod
@@ -196,6 +206,20 @@ def args_add_rho(parser: ArgumentParser):
                        help="Base for the log scale of the class weight proportion parameter.")
 
 
+def args_add_qrs_algorithm(parser: ArgumentParser):
+    group = parser.add_argument_group("QRS Algorithm")
+    group.add_argument("--qrs_name", dest="qrs_name", type=str, 
+                       choices=["xqrs", "corrected_xqrs"],
+                       help="Name of the QRS detection algorithm. Make sure data is available for it.")
+    group.add_argument("--search_radius", dest="search_radius", type=int, default=36,
+                       help="Only used if qrs_name is corrected_xqrs")
+    group.add_argument("--smooth_window_size", dest="smooth_window_size", type=int,
+                       help="Only used if qrs_name is corrected_xqrs")
+    group.add_argument("--peak_dir", dest="peak_dir", type=str,
+                       choices = ["up", "down", "combined"],
+                       help="Only used if qrs_name is corrected_xqrs")
+
+
 def args_add_setup(parser: ArgumentParser, default: str):
     group = parser.add_argument_group("Database Setup")
 
@@ -239,11 +263,23 @@ def args_parse_rho(arguments: Namespace):
     return np.logspace(arguments.rho_lower, arguments.rho_upper, arguments.rho_steps, base=arguments.rho_base)
 
 
-def args_parse_setup(arguments: Namespace) -> Iterator[Setup]:
+def args_parse_qrs_algorithm(arguments: Namespace):
+    if arguments.qrs_name == 'xqrs':
+        return XQRSPeakDetectionAlgorithm()
+    elif arguments.qrs_name == 'corrected_xqrs':
+        search_radius = arguments.search_radius
+        smooth_window_size = arguments.smooth_window_size
+        peak_dir = arguments.peak_dir
+        return CorrectedXQRSPeakDetectionAlgorithm(search_radius, smooth_window_size, peak_dir)
+    else:
+        raise ValueError(f"Unknown peak extraction algorithm {arguments.qrs_name}")
+
+
+def args_parse_setup(arguments: Namespace, qrs_algorithm: PeakDetectionAlgorithm | None = None) -> Iterator[Setup]:
     setup_cls = None
 
     def get_setup_instance(cls):
-        return cls.standard_test() if arguments.test else cls.standard_validate()
+        return cls.standard_test(qrs_algorithm) if arguments.test else cls.standard_validate(qrs_algorithm)
 
     if arguments.setup == "in":
         setup_cls = InDatabaseSetup

@@ -1,8 +1,11 @@
 from argparse import Namespace, ArgumentParser
 
-from src.scripts.util import args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, args_parse_setup, args_parse_rho, \
-    args_add_c, args_add_rho, args_add_classifier, \
-    args_add_bandwidth_rri, args_add_setup, finish_experiment
+from src.scripts.util import args_parse_qrs_algorithm, \
+    args_parse_c, args_parse_classifier, args_parse_bandwidth_rri, \
+    args_parse_setup, args_parse_rho, \
+    args_add_qrs_algorithm, args_add_c, args_add_rho, \
+    args_add_classifier, args_add_bandwidth_rri, args_add_setup, \
+    finish_experiment
 from src.experiments import ExperimentRRI
 
 
@@ -11,7 +14,8 @@ def main_performance_experiment_rri(arguments: Namespace):
     c_class_weight_proportions = args_parse_rho(arguments)
     classifier = args_parse_classifier(arguments)
     bandwidths_rri = args_parse_bandwidth_rri(arguments)
-    setups = args_parse_setup(arguments)
+    qrs_algorithm = args_parse_qrs_algorithm(arguments)
+    setups = args_parse_setup(arguments, qrs_algorithm)
 
     experiment = ExperimentRRI(cs, c_class_weight_proportions, classifier, bandwidths_rri)
 
@@ -45,6 +49,7 @@ def main_performance_experiment_rri(arguments: Namespace):
 if __name__ == "__main__":
     parser = ArgumentParser()
 
+    args_add_qrs_algorithm(parser)
     args_add_c(parser)
     args_add_rho(parser)
     args_add_classifier(parser)

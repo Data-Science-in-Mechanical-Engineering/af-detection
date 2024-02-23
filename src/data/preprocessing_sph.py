@@ -134,7 +134,7 @@ class SPHPreprocessing(Preprocessing[SPHDiagnostic]):
         return [
             SPHDiagnostic(rhythm, filename)
             for filename, rhythm in zip(diagnostics["FileName"], diagnostics["Rhythm"])
-            if filename not in excluded_filenames
+            if filename not in excluded_filenames 
         ]
 
     def extract_ecg_signal(self, diagnostic: SPHDiagnostic, zip_file: ZipFile) -> DiagnosticLeadInfo:

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import neurokit2 as nk
 import numpy as np
-from wfdb.processing import XQRS
+from wfdb.processing import XQRS, correct_peaks
 
 
 class PeakDetectionAlgorithm(ABC):
@@ -17,13 +17,26 @@ class PeakDetectionAlgorithm(ABC):
 
 
 class XQRSPeakDetectionAlgorithm(PeakDetectionAlgorithm):
-    def __init__(self):
-        super(XQRSPeakDetectionAlgorithm, self).__init__("xqrs")
+    def __init__(self, name=None):
+        super(XQRSPeakDetectionAlgorithm, self).__init__("xqrs" if name is None else name)
 
     def __call__(self, ecg: np.ndarray, sampling_rate: float) -> np.ndarray:
         xqrs = XQRS(sig=ecg, fs=sampling_rate)
         xqrs.detect(verbose=False)
         return np.array(xqrs.qrs_inds)
+
+
+class CorrectedXQRSPeakDetectionAlgorithm(XQRSPeakDetectionAlgorithm):
+    def __init__(self, search_radius: int, smooth_window_size: int, peak_dir: str):
+        super(CorrectedXQRSPeakDetectionAlgorithm, self).__init__("xqrs_corr")
+        self.search_radius = search_radius
+        self.smooth_window_size = smooth_window_size
+        self.peak_dir = peak_dir
+
+    def __call__(self, ecg: np.ndarray, sampling_rate: float):
+        peaks = super().__call__(ecg, sampling_rate)
+        corrected = correct_peaks(ecg, peaks, self.search_radius, self.smooth_window_size, self.peak_dir)
+        return corrected
 
 
 def make_neurokit_peak_extraction_algorithm(name: str):
@@ -58,6 +71,7 @@ Promac = make_neurokit_peak_extraction_algorithm("promac")
 
 ALL_WORKING_PEAK_DETECTION_ALGORITHMS = [
     XQRSPeakDetectionAlgorithm,
+    CorrectedXQRSPeakDetectionAlgorithm,
     Hamilton2002,
     Zong2003,
     Christov2004,

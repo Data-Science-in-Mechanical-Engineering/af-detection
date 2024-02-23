@@ -3,6 +3,10 @@
 export PYTHONPATH=$PYTHONPATH:.
 
 python src/scripts/performance.py \
+    # --qrs_name corrected_xqrs \
+    # --search_radius 36 \
+    # --smooth_window_size 50 \
+    # --peak_dir up \
     --c_lower 1 \
     --c_upper 1 \
     --c_steps 1 \
