@@ -7,8 +7,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm, Normalize
 
-from .util import Style, Metric
-from ..results import Snapshot, Result, RESULTS_FOLDER
+from src.plots.util import Style, Metric
+from src.results import Snapshot, Result, RESULTS_FOLDER
 
 
 class ROCData(NamedTuple):
@@ -94,8 +94,9 @@ def plot_roc(
     plt.ylabel(label_metric_y, size=Style.LABEL_FONT_SIZE)
     plt.tick_params(labelsize=Style.LABEL_FONT_SIZE)
 
-    sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=Normalize(vmin=data.min_rho, vmax=data.max_rho))
-    cb = ax.figure.colorbar(sm, ax=ax)
+    # sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=Normalize(vmin=data.min_rho, vmax=data.max_rho))
+    sm = plt.cm.ScalarMappable(cmap=Style.VIBRANT_COLOR_PALETTE, norm=LogNorm(vmin=data.min_rho, vmax=data.max_rho))
+    cb = ax.figure.colorbar(sm, ax=ax, )
     cb.outline.set_visible(False)
     cb.set_label(r"Relative penalization parameter $\rho$", size=Style.LABEL_FONT_SIZE)
     ax.figure.axes[-1].tick_params(labelsize=Style.LABEL_FONT_SIZE)
@@ -110,7 +111,7 @@ def plot_roc(
 
 
 if __name__ == "__main__":
-    RESULT = Result.from_json(RESULTS_FOLDER / "svm rri/validate-roc-cross-database.json") \
+    RESULT = Result.from_json(RESULTS_FOLDER / "svm rri/roc-cross-imbalanced.json") \
         .partition_by_datasets()
 
     SPH_RESULT = RESULT["SPHDataset", "SPHDataset"]
@@ -127,5 +128,5 @@ if __name__ == "__main__":
         "True Positive Rate (Sensitivity)",
         LINE_CS,
         CS,
-        RESULTS_FOLDER / "roc-coat.pdf"
+        RESULTS_FOLDER / "roc-blue.pdf"
     )

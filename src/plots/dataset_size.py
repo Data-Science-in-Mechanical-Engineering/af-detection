@@ -74,6 +74,7 @@ def plot_logsize_boxplot(data: dict[str, np.ndarray], **kwargs):
 
     ax = sns.boxplot(**arguments)
     adjust_box_widths(ax, 0.8)
+    ax.set_ylim(-0.05,1.05)
     return ax
 
 
@@ -90,7 +91,7 @@ def plot_dataset_logsize_experiment(
     ax = plot_logsize_boxplot(data)
 
     plt.ylabel(metric_label, size=Style.LABEL_FONT_SIZE)
-    plt.xlabel("Dataset size", size=Style.LABEL_FONT_SIZE)
+    plt.xlabel("Data set size", size=Style.LABEL_FONT_SIZE)
     ax.tick_params(labelsize=Style.LABEL_FONT_SIZE)
     plt.legend(fontsize=Style.LABEL_FONT_SIZE)
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     plot_dataset_logsize_experiment(
         RESULT,
         lambda outcome: outcome.f1,
-        "f1",
+        "F1-Score",
         lambda a, b: LABELS[a, b],
         common_sizes_only=True,
         path=RESULTS_FOLDER / "f1-data-size.pdf"
