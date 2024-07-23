@@ -20,5 +20,5 @@ if __name__ == '__main__':
         datasets = {"COATDataset": COAT, "SPHDataset": SPH}, 
         n_peaks_by_dataset={"COATDataset": get_number_peaks(COAT, 0.01), "SPHDataset": get_number_peaks(SPH, 0.01)}, 
         root_folder=svm_rri_folder / rname, 
-        setup_folder=lambda snapshot: f"peaks/all_peaks/{snapshot.setup['dataset_train']['name']}_{snapshot.setup['dataset_validate']['name']}"
+        setup_folder=lambda snapshot: f"plots_misclassifications/{snapshot.setup['dataset_train']['name']}_{snapshot.setup['dataset_validate']['name']}"
     )

@@ -230,8 +230,11 @@ def args_add_setup(parser: ArgumentParser, default: str):
                        help="Whether or not to evaluate on the test dataset.")
 
 
-def args_parse_c(arguments: Namespace):
-    return np.logspace(arguments.c_lower, arguments.c_upper, arguments.c_steps)
+def args_parse_c(arguments: Namespace, linear: bool=False):
+    if linear:
+        return np.linspace(arguments.c_lower, arguments.c_upper, arguments.c_steps)
+    else:
+        return np.logspace(arguments.c_lower, arguments.c_upper, arguments.c_steps)
 
 
 def args_parse_classifier(arguments: Namespace):
