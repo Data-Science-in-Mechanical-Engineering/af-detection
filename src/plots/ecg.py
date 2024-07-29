@@ -204,7 +204,8 @@ def plot_misclassifications(
         datasets: dict[str, ECGDataset],
         n_peaks_by_dataset: dict[str, int],
         root_folder: Path,
-        setup_folder: Callable[[Snapshot], str]
+        setup_folder: Callable[[Snapshot], str],
+        plot_confidence=False
 ):
     def plot_many(distances_by_identifier: dict[str, float], folder: Path, dataset: ECGDataset, n_peaks: int):
         entries = {}
@@ -227,9 +228,9 @@ def plot_misclassifications(
                 size=size,
                 line_width=3,
                 title=identifier,
-                decision_distance=distances_by_identifier[identifier],
+                decision_distance=distances_by_identifier[identifier] if plot_confidence else None,
                 path=path,
-                n_peaks=n_peaks
+                n_peaks=n_peaks,
             )
 
     for snapshot in result:
