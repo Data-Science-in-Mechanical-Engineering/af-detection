@@ -1,10 +1,17 @@
-# Data
-data/coat/*/
-data/sph/*/
-data/*/*.zip
+/cache/
+/checkpoints/
+/data/
+/data_raw/
+/figures/
+/results/
+/scripts/
 
-# Results
-results/
+/cinc2017/data
+/cinc2017/*/container.def
+/cinc2017/*/container.sif
+/cinc2017/*/coat
+/cinc2017/*/sph
+/cinc2017/*/cinc
 
 
 # Byte-compiled / optimized / DLL files
